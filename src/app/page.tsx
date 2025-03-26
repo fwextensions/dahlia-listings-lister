@@ -18,6 +18,8 @@ export default function Home() {
   const listItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   // Keep track of the current filtered listings for keyboard navigation
   const filteredListingsRef = useRef<Listing[]>([]);
+  // Track previous search term to detect changes
+  const prevSearchTermRef = useRef<string>("");
 
   // Add direct fetch for debugging and actual display
   useEffect(() => {
@@ -91,6 +93,26 @@ export default function Home() {
     return filtered;
   })();
 
+  // Update selected listing when search term changes
+  useEffect(() => {
+    // Skip if nothing has loaded yet
+    if (isDirectLoading || !filteredListings.length) return;
+    
+    // Check if search term has changed
+    if (searchTerm !== prevSearchTermRef.current) {
+      prevSearchTermRef.current = searchTerm;
+      
+      // Check if current selection is still in filtered results
+      const isCurrentSelectionInFiltered = selectedListingId && 
+        filteredListings.some(listing => listing.Id === selectedListingId);
+      
+      // If not, select the first item in the filtered results
+      if (!isCurrentSelectionInFiltered && filteredListings.length > 0) {
+        setSelectedListingId(filteredListings[0].Id);
+      }
+    }
+  }, [searchTerm, filteredListings, selectedListingId, isDirectLoading]);
+
   // Get the selected listing
   const selectedListing = selectedListingId 
     ? directListings.find(listing => listing.Id === selectedListingId) || null
@@ -140,6 +162,28 @@ export default function Home() {
     listItemRefs.current[id] = element;
   };
 
+  // Generate results count text
+  const getResultsCountText = () => {
+    if (isDirectLoading) return "";
+    
+    const totalCount = directListings.length;
+    const filteredCount = filteredListings.length;
+    
+    if (!searchTerm) {
+      return `Showing all ${totalCount} listings`;
+    }
+    
+    if (filteredCount === 0) {
+      return `No listings match "${searchTerm}"`;
+    }
+    
+    if (filteredCount === 1) {
+      return `1 listing matches "${searchTerm}"`;
+    }
+    
+    return `${filteredCount} listings match "${searchTerm}"`;
+  };
+
   // Debug: Log the state in the component
   console.log("Page component - filteredListings:", filteredListings.length);
   console.log("Page component - isDirectLoading:", isDirectLoading);
@@ -161,6 +205,11 @@ export default function Home() {
               inputRef={searchInputRef}
               onKeyDown={handleKeyDown}
             />
+            {!isDirectLoading && (
+              <div className="mt-2 text-sm text-gray-500">
+                {getResultsCountText()}
+              </div>
+            )}
           </div>
           <div 
             className="flex-1 overflow-y-auto" 

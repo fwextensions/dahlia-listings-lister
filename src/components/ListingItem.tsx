@@ -14,6 +14,29 @@ const ListingItem = forwardRef(({
 	onClick, 
 	className = "" 
 }: ListingItemProps, ref: ForwardedRef<HTMLDivElement>) => {
+	// Format application due date
+	const formatDueDate = () => {
+		if (!listing.Application_Due_Date) return "No due date";
+		
+		try {
+			// Parse the date string (assuming it's in ISO format or similar)
+			const date = new Date(listing.Application_Due_Date);
+			
+			// Check if the date is valid
+			if (isNaN(date.getTime())) return "Invalid date";
+			
+			// Format the date as MM/DD/YYYY
+			return date.toLocaleDateString("en-US", {
+				year: "numeric",
+				month: "short",
+				day: "numeric",
+			});
+		} catch (error) {
+			console.error("Error formatting application due date:", error);
+			return "Date error";
+		}
+	};
+
 	return (
 		<div
 			className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
@@ -39,6 +62,12 @@ const ListingItem = forwardRef(({
 				<div className="flex justify-between">
 					<span>Units:</span>
 					<span className="font-medium">{listing.Units_Available}</span>
+				</div>
+				<div className="flex justify-between">
+					<span>Due Date:</span>
+					<span className={`font-medium ${!listing.Application_Due_Date ? "text-gray-400 italic" : ""}`}>
+						{formatDueDate()}
+					</span>
 				</div>
 			</div>
 		</div>

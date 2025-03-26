@@ -65,6 +65,7 @@ export interface Listing {
 	Tenure: string;
 	Name: string;
 	Application_Due_Date: string;
+	Lottery_Date?: string;
 	Lottery_Results_Date: string;
 	Reserved_community_minimum_age: number;
 	hasWaitlist: boolean;

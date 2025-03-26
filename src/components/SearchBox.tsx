@@ -1,11 +1,18 @@
-import { ChangeEvent } from "react";
+import { ChangeEvent, KeyboardEvent, RefObject } from "react";
 
 interface SearchBoxProps {
 	searchTerm: string;
 	onSearchChange: (value: string) => void;
+	inputRef?: RefObject<HTMLInputElement | null>;
+	onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void;
 }
 
-export default function SearchBox({ searchTerm, onSearchChange }: SearchBoxProps) {
+export default function SearchBox({ 
+	searchTerm, 
+	onSearchChange, 
+	inputRef, 
+	onKeyDown 
+}: SearchBoxProps) {
 	const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
 		onSearchChange(e.target.value);
 	};
@@ -35,6 +42,8 @@ export default function SearchBox({ searchTerm, onSearchChange }: SearchBoxProps
 				placeholder="Search listings..."
 				value={searchTerm}
 				onChange={handleChange}
+				ref={inputRef}
+				onKeyDown={onKeyDown}
 			/>
 			{searchTerm && (
 				<button

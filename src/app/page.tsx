@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, KeyboardEvent as ReactKeyboardEvent } from "react";
 import Layout from "@/components/Layout";
 import SearchBox from "@/components/SearchBox";
 import ListingItem from "@/components/ListingItem";
@@ -13,6 +13,11 @@ export default function Home() {
   const [directError, setDirectError] = useState<Error | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const listingsContainerRef = useRef<HTMLDivElement>(null);
+  const listItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Keep track of the current filtered listings for keyboard navigation
+  const filteredListingsRef = useRef<Listing[]>([]);
 
   // Add direct fetch for debugging and actual display
   useEffect(() => {
@@ -55,34 +60,85 @@ export default function Home() {
   const filteredListings = (() => {
     if (!directListings.length) return [];
     
+    let filtered: Listing[];
+    
     if (!searchTerm) {
-      return [...directListings].sort((a, b) => a.Name.localeCompare(b.Name));
+      filtered = [...directListings].sort((a, b) => a.Name.localeCompare(b.Name));
+    } else {
+      const searchTermLower = searchTerm.toLowerCase();
+      
+      filtered = directListings.filter((listing) => {
+        // For Id, only match exactly
+        if (listing.Id === searchTerm) {
+          return true;
+        }
+        
+        // For other fields, do case-insensitive partial matching
+        return (
+          listing.Name.toLowerCase().includes(searchTermLower) ||
+          (listing.Tenure && listing.Tenure.toLowerCase().includes(searchTermLower)) ||
+          (listing.Status && listing.Status.toLowerCase().includes(searchTermLower)) ||
+          (listing.Listing_Type && listing.Listing_Type.toLowerCase().includes(searchTermLower)) ||
+          (listing.RecordType && listing.RecordType.Name && 
+           listing.RecordType.Name.toLowerCase().includes(searchTermLower))
+        );
+      }).sort((a, b) => a.Name.localeCompare(b.Name));
     }
     
-    const searchTermLower = searchTerm.toLowerCase();
+    // Update the ref with the current filtered listings
+    filteredListingsRef.current = filtered;
     
-    return directListings.filter((listing) => {
-      // For Id, only match exactly
-      if (listing.Id === searchTerm) {
-        return true;
-      }
-      
-      // For other fields, do case-insensitive partial matching
-      return (
-        listing.Name.toLowerCase().includes(searchTermLower) ||
-        (listing.Tenure && listing.Tenure.toLowerCase().includes(searchTermLower)) ||
-        (listing.Status && listing.Status.toLowerCase().includes(searchTermLower)) ||
-        (listing.Listing_Type && listing.Listing_Type.toLowerCase().includes(searchTermLower)) ||
-        (listing.RecordType && listing.RecordType.Name && 
-         listing.RecordType.Name.toLowerCase().includes(searchTermLower))
-      );
-    }).sort((a, b) => a.Name.localeCompare(b.Name));
+    return filtered;
   })();
 
   // Get the selected listing
   const selectedListing = selectedListingId 
     ? directListings.find(listing => listing.Id === selectedListingId) || null
     : null;
+
+  // Scroll selected item into view when selection changes
+  useEffect(() => {
+    if (selectedListingId && listItemRefs.current[selectedListingId]) {
+      listItemRefs.current[selectedListingId]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [selectedListingId]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement | HTMLInputElement>) => {
+    const currentFiltered = filteredListingsRef.current;
+    if (!currentFiltered.length) return;
+    
+    // Get current index in the filtered list
+    const currentIndex = selectedListingId 
+      ? currentFiltered.findIndex(listing => listing.Id === selectedListingId)
+      : -1;
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault(); // Prevent scrolling
+      
+      // Move selection down
+      if (currentIndex < currentFiltered.length - 1) {
+        const nextIndex = currentIndex + 1;
+        setSelectedListingId(currentFiltered[nextIndex].Id);
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault(); // Prevent scrolling
+      
+      // Move selection up
+      if (currentIndex > 0) {
+        const prevIndex = currentIndex - 1;
+        setSelectedListingId(currentFiltered[prevIndex].Id);
+      }
+    }
+  };
+
+  // Function to set ref for a listing item
+  const setListItemRef = (id: string, element: HTMLDivElement | null) => {
+    listItemRefs.current[id] = element;
+  };
 
   // Debug: Log the state in the component
   console.log("Page component - filteredListings:", filteredListings.length);
@@ -93,11 +149,23 @@ export default function Home() {
     <Layout>
       <div className="flex h-full">
         {/* Finder Pane (30% width) */}
-        <div className="w-full md:w-1/3 border-r flex flex-col h-full">
+        <div 
+          className="w-full md:w-1/3 border-r flex flex-col h-full"
+          onKeyDown={handleKeyDown}
+          tabIndex={0} // Make the container focusable
+        >
           <div className="p-4 border-b">
-            <SearchBox searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+            <SearchBox 
+              searchTerm={searchTerm} 
+              onSearchChange={setSearchTerm} 
+              inputRef={searchInputRef}
+              onKeyDown={handleKeyDown}
+            />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div 
+            className="flex-1 overflow-y-auto" 
+            ref={listingsContainerRef}
+          >
             {isDirectLoading ? (
               <div className="p-4 text-center">
                 <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-blue-600 rounded-full" role="status">
@@ -120,6 +188,8 @@ export default function Home() {
                   listing={listing}
                   isSelected={listing.Id === selectedListingId}
                   onClick={() => setSelectedListingId(listing.Id)}
+                  className="listing-item"
+                  ref={(el: HTMLDivElement | null) => setListItemRef(listing.Id, el)}
                 />
               ))
             )}

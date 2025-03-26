@@ -1,18 +1,26 @@
 import { Listing } from "@/types/listings";
+import { forwardRef, ForwardedRef } from "react";
 
 interface ListingItemProps {
 	listing: Listing;
 	isSelected: boolean;
 	onClick: () => void;
+	className?: string;
 }
 
-export default function ListingItem({ listing, isSelected, onClick }: ListingItemProps) {
+const ListingItem = forwardRef(({ 
+	listing, 
+	isSelected, 
+	onClick, 
+	className = "" 
+}: ListingItemProps, ref: ForwardedRef<HTMLDivElement>) => {
 	return (
 		<div
 			className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${
 				isSelected ? "bg-blue-50 border-l-4 border-l-blue-500" : ""
-			}`}
+			} ${className}`}
 			onClick={onClick}
+			ref={ref}
 		>
 			<h3 className="font-medium text-gray-900 truncate">{listing.Name}</h3>
 			<div className="mt-1 text-sm text-gray-500 space-y-1">
@@ -35,4 +43,9 @@ export default function ListingItem({ listing, isSelected, onClick }: ListingIte
 			</div>
 		</div>
 	);
-}
+});
+
+// Add display name for better debugging
+ListingItem.displayName = "ListingItem";
+
+export default ListingItem;

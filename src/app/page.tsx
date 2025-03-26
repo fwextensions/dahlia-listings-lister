@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useState, useRef, KeyboardEvent as ReactKeyboardEvent, useCallback } from "react";
 import Layout from "@/components/Layout";
 import SearchBox from "@/components/SearchBox";
 import ListingItem from "@/components/ListingItem";
@@ -20,10 +20,15 @@ export default function Home() {
   const filteredListingsRef = useRef<Listing[]>([]);
   // Track previous search term to detect changes
   const prevSearchTermRef = useRef<string>("");
+  // Track if initial data has been loaded
+  const initialDataLoadedRef = useRef<boolean>(false);
 
-  // Add direct fetch for debugging and actual display
+  // Add direct fetch for debugging and actual display - only run once
   useEffect(() => {
-    console.log("Page component mounted");
+    // Skip if we've already loaded the data
+    if (initialDataLoadedRef.current) return;
+    
+    console.log("Page component mounted - fetching data");
     
     const fetchDirectly = async () => {
       try {
@@ -39,10 +44,13 @@ export default function Home() {
         if (data && data.listings && Array.isArray(data.listings)) {
           setDirectListings(data.listings);
           
-          // Select the first listing by default
+          // Select the first listing by default if no selection exists
           if (data.listings.length > 0 && !selectedListingId) {
             setSelectedListingId(data.listings[0].Id);
           }
+          
+          // Mark that we've loaded the initial data
+          initialDataLoadedRef.current = true;
         } else {
           console.error("Invalid data format:", data);
           setDirectError(new Error("Invalid data format"));
@@ -56,10 +64,10 @@ export default function Home() {
     };
     
     fetchDirectly();
-  }, [selectedListingId]);
+  }, [selectedListingId]); // Include selectedListingId to fix the lint warning
 
-  // Filter listings based on search term
-  const filteredListings = (() => {
+  // Filter listings based on search term - memoized to prevent unnecessary recalculations
+  const filteredListings = useCallback(() => {
     if (!directListings.length) return [];
     
     let filtered: Listing[];
@@ -91,12 +99,15 @@ export default function Home() {
     filteredListingsRef.current = filtered;
     
     return filtered;
-  })();
+  }, [directListings, searchTerm]); // Only recalculate when these dependencies change
+
+  // Memoize the filtered listings to prevent recalculation on every render
+  const currentFilteredListings = filteredListings();
 
   // Update selected listing when search term changes
   useEffect(() => {
     // Skip if nothing has loaded yet
-    if (isDirectLoading || !filteredListings.length) return;
+    if (isDirectLoading || !currentFilteredListings.length) return;
     
     // Check if search term has changed
     if (searchTerm !== prevSearchTermRef.current) {
@@ -104,19 +115,23 @@ export default function Home() {
       
       // Check if current selection is still in filtered results
       const isCurrentSelectionInFiltered = selectedListingId && 
-        filteredListings.some(listing => listing.Id === selectedListingId);
+        currentFilteredListings.some(listing => listing.Id === selectedListingId);
       
       // If not, select the first item in the filtered results
-      if (!isCurrentSelectionInFiltered && filteredListings.length > 0) {
-        setSelectedListingId(filteredListings[0].Id);
+      if (!isCurrentSelectionInFiltered && currentFilteredListings.length > 0) {
+        setSelectedListingId(currentFilteredListings[0].Id);
       }
     }
-  }, [searchTerm, filteredListings, selectedListingId, isDirectLoading]);
+  }, [searchTerm, currentFilteredListings, selectedListingId, isDirectLoading]);
 
-  // Get the selected listing
-  const selectedListing = selectedListingId 
-    ? directListings.find(listing => listing.Id === selectedListingId) || null
-    : null;
+  // Get the selected listing - memoized to prevent unnecessary lookups
+  const selectedListing = useCallback(() => {
+    if (!selectedListingId) return null;
+    return directListings.find(listing => listing.Id === selectedListingId) || null;
+  }, [directListings, selectedListingId]); // Only recalculate when these dependencies change
+
+  // Current selected listing
+  const currentSelectedListing = selectedListing();
 
   // Scroll selected item into view when selection changes
   useEffect(() => {
@@ -167,7 +182,7 @@ export default function Home() {
     if (isDirectLoading) return "";
     
     const totalCount = directListings.length;
-    const filteredCount = filteredListings.length;
+    const filteredCount = currentFilteredListings.length;
     
     if (!searchTerm) {
       return `Showing all ${totalCount} listings`;
@@ -185,7 +200,7 @@ export default function Home() {
   };
 
   // Debug: Log the state in the component
-  console.log("Page component - filteredListings:", filteredListings.length);
+  console.log("Page component - filteredListings:", currentFilteredListings.length);
   console.log("Page component - isDirectLoading:", isDirectLoading);
   console.log("Page component - directError:", directError);
 
@@ -226,12 +241,12 @@ export default function Home() {
               <div className="p-4 text-center text-red-500">
                 <p>Error loading listings: {directError.message}</p>
               </div>
-            ) : filteredListings.length === 0 ? (
+            ) : currentFilteredListings.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
                 <p>No listings found matching your search.</p>
               </div>
             ) : (
-              filteredListings.map((listing) => (
+              currentFilteredListings.map((listing) => (
                 <ListingItem
                   key={listing.Id}
                   listing={listing}
@@ -247,7 +262,7 @@ export default function Home() {
 
         {/* Details Pane (70% width) */}
         <div className="hidden md:block md:w-2/3 p-6 overflow-y-auto">
-          <ListingDetails listing={selectedListing} />
+          <ListingDetails listing={currentSelectedListing} />
         </div>
       </div>
     </Layout>

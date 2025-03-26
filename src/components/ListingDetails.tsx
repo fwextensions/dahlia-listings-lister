@@ -14,6 +14,20 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 		);
 	}
 
+	// Format date to YYYY-MM-DD
+	const formatDate = (dateString: string) => {
+		if (!dateString) return "N/A";
+		
+		try {
+			const date = new Date(dateString);
+			if (isNaN(date.getTime())) return "Invalid date";
+			return date.toISOString().split("T")[0];
+		} catch (error) {
+			console.error("Error formatting date:", error);
+			return "Date error";
+		}
+	};
+
 	// Define which fields to display and in what order
 	const detailFields = [
 		{ label: "Name", value: listing.Name },
@@ -23,13 +37,13 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 		{ label: "Tenure", value: listing.Tenure },
 		{ label: "Type", value: listing.Listing_Type },
 		{ label: "Units Available", value: listing.Units_Available.toString() },
-		{ label: "Application Due Date", value: new Date(listing.Application_Due_Date).toLocaleDateString() },
-		{ label: "Lottery Results Date", value: listing.Lottery_Results_Date },
+		{ label: "Application Due Date", value: formatDate(listing.Application_Due_Date) },
+		{ label: "Lottery Results Date", value: formatDate(listing.Lottery_Results_Date) },
 		{ label: "Lottery Status", value: listing.Lottery_Status },
 		{ label: "Accepting Online Applications", value: listing.Accepting_Online_Applications ? "Yes" : "No" },
 		{ label: "Has Waitlist", value: listing.hasWaitlist ? "Yes" : "No" },
 		{ label: "Record Type", value: listing.RecordType.Name },
-		{ label: "Last Modified", value: new Date(listing.LastModifiedDate).toLocaleString() },
+		{ label: "Last Modified", value: formatDate(listing.LastModifiedDate) },
 	];
 
 	// Create unit summary section if available

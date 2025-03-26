@@ -25,12 +25,8 @@ const ListingItem = forwardRef(({
 			// Check if the date is valid
 			if (isNaN(date.getTime())) return "Invalid date";
 			
-			// Format the date as MM/DD/YYYY
-			return date.toLocaleDateString("en-US", {
-				year: "numeric",
-				month: "short",
-				day: "numeric",
-			});
+			// Format the date as YYYY-MM-DD
+			return date.toISOString().split("T")[0];
 		} catch (error) {
 			console.error("Error formatting application due date:", error);
 			return "Date error";

@@ -1,103 +1,136 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import Layout from "@/components/Layout";
+import SearchBox from "@/components/SearchBox";
+import ListingItem from "@/components/ListingItem";
+import ListingDetails from "@/components/ListingDetails";
+import { Listing } from "@/types/listings";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [directListings, setDirectListings] = useState<Listing[]>([]);
+  const [isDirectLoading, setIsDirectLoading] = useState(true);
+  const [directError, setDirectError] = useState<Error | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Add direct fetch for debugging and actual display
+  useEffect(() => {
+    console.log("Page component mounted");
+    
+    const fetchDirectly = async () => {
+      try {
+        setIsDirectLoading(true);
+        console.log("Directly fetching listings.json");
+        const response = await fetch("/listings.json");
+        if (!response.ok) {
+          throw new Error(`Direct fetch failed with status ${response.status}`);
+        }
+        const data = await response.json();
+        console.log("Direct fetch succeeded:", data);
+        
+        if (data && data.listings && Array.isArray(data.listings)) {
+          setDirectListings(data.listings);
+          
+          // Select the first listing by default
+          if (data.listings.length > 0 && !selectedListingId) {
+            setSelectedListingId(data.listings[0].Id);
+          }
+        } else {
+          console.error("Invalid data format:", data);
+          setDirectError(new Error("Invalid data format"));
+        }
+      } catch (error) {
+        console.error("Direct fetch error:", error);
+        setDirectError(error instanceof Error ? error : new Error(String(error)));
+      } finally {
+        setIsDirectLoading(false);
+      }
+    };
+    
+    fetchDirectly();
+  }, [selectedListingId]);
+
+  // Filter listings based on search term
+  const filteredListings = (() => {
+    if (!directListings.length) return [];
+    
+    if (!searchTerm) {
+      return [...directListings].sort((a, b) => a.Name.localeCompare(b.Name));
+    }
+    
+    const searchTermLower = searchTerm.toLowerCase();
+    
+    return directListings.filter((listing) => {
+      // For Id, only match exactly
+      if (listing.Id === searchTerm) {
+        return true;
+      }
+      
+      // For other fields, do case-insensitive partial matching
+      return (
+        listing.Name.toLowerCase().includes(searchTermLower) ||
+        (listing.Tenure && listing.Tenure.toLowerCase().includes(searchTermLower)) ||
+        (listing.Status && listing.Status.toLowerCase().includes(searchTermLower)) ||
+        (listing.Listing_Type && listing.Listing_Type.toLowerCase().includes(searchTermLower)) ||
+        (listing.RecordType && listing.RecordType.Name && 
+         listing.RecordType.Name.toLowerCase().includes(searchTermLower))
+      );
+    }).sort((a, b) => a.Name.localeCompare(b.Name));
+  })();
+
+  // Get the selected listing
+  const selectedListing = selectedListingId 
+    ? directListings.find(listing => listing.Id === selectedListingId) || null
+    : null;
+
+  // Debug: Log the state in the component
+  console.log("Page component - filteredListings:", filteredListings.length);
+  console.log("Page component - isDirectLoading:", isDirectLoading);
+  console.log("Page component - directError:", directError);
+
+  return (
+    <Layout>
+      <div className="flex h-full">
+        {/* Finder Pane (30% width) */}
+        <div className="w-full md:w-1/3 border-r flex flex-col h-full">
+          <div className="p-4 border-b">
+            <SearchBox searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {isDirectLoading ? (
+              <div className="p-4 text-center">
+                <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-blue-600 rounded-full" role="status">
+                  <span className="sr-only">Loading...</span>
+                </div>
+                <p className="mt-2">Loading listings...</p>
+              </div>
+            ) : directError ? (
+              <div className="p-4 text-center text-red-500">
+                <p>Error loading listings: {directError.message}</p>
+              </div>
+            ) : filteredListings.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                <p>No listings found matching your search.</p>
+              </div>
+            ) : (
+              filteredListings.map((listing) => (
+                <ListingItem
+                  key={listing.Id}
+                  listing={listing}
+                  isSelected={listing.Id === selectedListingId}
+                  onClick={() => setSelectedListingId(listing.Id)}
+                />
+              ))
+            )}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        {/* Details Pane (70% width) */}
+        <div className="hidden md:block md:w-2/3 p-6 overflow-y-auto">
+          <ListingDetails listing={selectedListing} />
+        </div>
+      </div>
+    </Layout>
   );
 }

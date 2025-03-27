@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SF Housing Listings",
+  title: "SF Housing Listings Lister",
   description: "Browse available housing units on housing.sfgov.org",
 };
 

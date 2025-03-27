@@ -53,10 +53,6 @@ const ListingItem = forwardRef(({
 					<span className="font-medium text-left">{listing.Listing_Type}</span>
 				</div>
 				<div className="grid grid-cols-[60px_1fr]">
-					<span className="text-gray-500">Status:</span>
-					<span className="font-medium text-left">{listing.Status}</span>
-				</div>
-				<div className="grid grid-cols-[60px_1fr]">
 					<span className="text-gray-500">Tenure:</span>
 					<span className="font-medium text-left">{listing.Tenure}</span>
 				</div>

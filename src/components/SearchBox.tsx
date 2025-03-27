@@ -38,7 +38,7 @@ export default function SearchBox({
 			</div>
 			<input
 				type="search"
-				className="block w-full p-3 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-blue-500 focus:border-blue-500"
+				className="block w-full p-3 pl-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-[#0077da] focus:border-[#0077da]"
 				placeholder="Search listings..."
 				value={searchTerm}
 				onChange={handleChange}

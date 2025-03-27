@@ -101,7 +101,7 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 							href={housingUrl} 
 							target="_blank" 
 							rel="noopener noreferrer" 
-							className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+							className="inline-flex items-center px-4 py-2 bg-[#0077da] text-white rounded-md hover:bg-[#0066c0] transition-colors"
 						>
 							<svg 
 								xmlns="http://www.w3.org/2000/svg" 

@@ -66,6 +66,24 @@ export default function Home() {
     fetchDirectly();
   }, [selectedListingId]); // Include selectedListingId to fix the lint warning
 
+  // Helper function to compare dates for sorting
+  const compareDates = (a: Listing, b: Listing) => {
+    // If either date is missing, put it at the end
+    if (!a.Application_Due_Date) return 1;
+    if (!b.Application_Due_Date) return -1;
+    
+    // Parse dates
+    const dateA = new Date(a.Application_Due_Date);
+    const dateB = new Date(b.Application_Due_Date);
+    
+    // Check for invalid dates
+    if (isNaN(dateA.getTime())) return 1;
+    if (isNaN(dateB.getTime())) return -1;
+    
+    // Sort descending (most recent first)
+    return dateB.getTime() - dateA.getTime();
+  };
+
   // Filter listings based on search term - memoized to prevent unnecessary recalculations
   const filteredListings = useCallback(() => {
     if (!directListings.length) return [];
@@ -73,7 +91,8 @@ export default function Home() {
     let filtered: Listing[];
     
     if (!searchTerm) {
-      filtered = [...directListings].sort((a, b) => a.Name.localeCompare(b.Name));
+      // Sort by application due date descending
+      filtered = [...directListings].sort(compareDates);
     } else {
       const searchTermLower = searchTerm.toLowerCase();
       
@@ -92,7 +111,7 @@ export default function Home() {
           (listing.RecordType && listing.RecordType.Name && 
            listing.RecordType.Name.toLowerCase().includes(searchTermLower))
         );
-      }).sort((a, b) => a.Name.localeCompare(b.Name));
+      }).sort(compareDates); // Sort filtered results by application due date descending
     }
     
     // Update the ref with the current filtered listings
@@ -107,11 +126,17 @@ export default function Home() {
   // Update selected listing when search term changes
   useEffect(() => {
     // Skip if nothing has loaded yet
-    if (isDirectLoading || !currentFilteredListings.length) return;
+    if (isDirectLoading) return;
     
     // Check if search term has changed
     if (searchTerm !== prevSearchTermRef.current) {
       prevSearchTermRef.current = searchTerm;
+      
+      // If no results match, clear the selection
+      if (currentFilteredListings.length === 0) {
+        setSelectedListingId(null);
+        return;
+      }
       
       // Check if current selection is still in filtered results
       const isCurrentSelectionInFiltered = selectedListingId && 
@@ -127,8 +152,12 @@ export default function Home() {
   // Get the selected listing - memoized to prevent unnecessary lookups
   const selectedListing = useCallback(() => {
     if (!selectedListingId) return null;
+    
+    // If there are no filtered results, return null
+    if (currentFilteredListings.length === 0) return null;
+    
     return directListings.find(listing => listing.Id === selectedListingId) || null;
-  }, [directListings, selectedListingId]); // Only recalculate when these dependencies change
+  }, [directListings, selectedListingId, currentFilteredListings.length]); // Include filtered listings length as dependency
 
   // Current selected listing
   const currentSelectedListing = selectedListing();
@@ -232,7 +261,7 @@ export default function Home() {
           >
             {isDirectLoading ? (
               <div className="p-4 text-center">
-                <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-blue-600 rounded-full" role="status">
+                <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-[#0077da] rounded-full" role="status">
                   <span className="sr-only">Loading...</span>
                 </div>
                 <p className="mt-2">Loading listings...</p>
@@ -262,7 +291,13 @@ export default function Home() {
 
         {/* Details Pane (70% width) */}
         <div className="hidden md:block md:w-2/3 p-6 overflow-y-auto">
-          <ListingDetails listing={currentSelectedListing} />
+          {currentSelectedListing ? (
+            <ListingDetails listing={currentSelectedListing} />
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>No listing selected.</p>
+            </div>
+          )}
         </div>
       </div>
     </Layout>

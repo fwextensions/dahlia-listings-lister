@@ -5,6 +5,7 @@ import Layout from "@/components/Layout";
 import SearchBox from "@/components/SearchBox";
 import ListingItem from "@/components/ListingItem";
 import ListingDetails from "@/components/ListingDetails";
+import FilterBar, { ListingFilter } from "@/components/FilterBar";
 import { Listing } from "@/types/listings";
 
 export default function Home() {
@@ -12,6 +13,7 @@ export default function Home() {
   const [isDirectLoading, setIsDirectLoading] = useState(true);
   const [directError, setDirectError] = useState<Error | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentFilter, setCurrentFilter] = useState<ListingFilter>("All");
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listingsContainerRef = useRef<HTMLDivElement>(null);
@@ -90,13 +92,27 @@ export default function Home() {
     
     let filtered: Listing[];
     
+    // First apply the type filter
+    let typeFiltered = directListings;
+    if (currentFilter !== "All") {
+      typeFiltered = directListings.filter((listing) => {
+        if (currentFilter === "Rental") {
+          return listing.RecordType && listing.RecordType.Name === "Rental";
+        } else if (currentFilter === "Sales") {
+          return listing.RecordType && listing.RecordType.Name === "Ownership";
+        }
+        return true;
+      });
+    }
+    
+    // Then apply the search term filter
     if (!searchTerm) {
       // Sort by application due date descending
-      filtered = [...directListings].sort(compareDates);
+      filtered = [...typeFiltered].sort(compareDates);
     } else {
       const searchTermLower = searchTerm.toLowerCase();
       
-      filtered = directListings.filter((listing) => {
+      filtered = typeFiltered.filter((listing) => {
         // For Id, only match exactly
         if (listing.Id === searchTerm) {
           return true;
@@ -114,16 +130,19 @@ export default function Home() {
       }).sort(compareDates); // Sort filtered results by application due date descending
     }
     
-    // Update the ref with the current filtered listings
-    filteredListingsRef.current = filtered;
-    
     return filtered;
-  }, [directListings, searchTerm]); // Only recalculate when these dependencies change
+  }, [directListings, searchTerm, currentFilter]); // Add currentFilter as a dependency
 
   // Memoize the filtered listings to prevent recalculation on every render
   const currentFilteredListings = filteredListings();
 
-  // Update selected listing when search term changes
+  // Track when filtered listings change
+  useEffect(() => {
+    // Update the ref with the current filtered listings
+    filteredListingsRef.current = currentFilteredListings;
+  }, [currentFilteredListings]);
+
+  // Update selected listing when search term or filter changes
   useEffect(() => {
     // Skip if nothing has loaded yet
     if (isDirectLoading) return;
@@ -131,23 +150,26 @@ export default function Home() {
     // Check if search term has changed
     if (searchTerm !== prevSearchTermRef.current) {
       prevSearchTermRef.current = searchTerm;
-      
-      // If no results match, clear the selection
-      if (currentFilteredListings.length === 0) {
-        setSelectedListingId(null);
-        return;
-      }
-      
-      // Check if current selection is still in filtered results
-      const isCurrentSelectionInFiltered = selectedListingId && 
-        currentFilteredListings.some(listing => listing.Id === selectedListingId);
-      
-      // If not, select the first item in the filtered results
-      if (!isCurrentSelectionInFiltered && currentFilteredListings.length > 0) {
-        setSelectedListingId(currentFilteredListings[0].Id);
-      }
     }
-  }, [searchTerm, currentFilteredListings, selectedListingId, isDirectLoading]);
+    
+    // Get the current filtered listings
+    const currentFiltered = filteredListingsRef.current;
+    
+    // If no results match, clear the selection
+    if (currentFiltered.length === 0) {
+      setSelectedListingId(null);
+      return;
+    }
+    
+    // Check if current selection is still in filtered results
+    const isCurrentSelectionInFiltered = selectedListingId && 
+      currentFiltered.some(listing => listing.Id === selectedListingId);
+    
+    // If not, select the first item in the filtered results
+    if (!isCurrentSelectionInFiltered && currentFiltered.length > 0) {
+      setSelectedListingId(currentFiltered[0].Id);
+    }
+  }, [searchTerm, currentFilter, isDirectLoading, selectedListingId]);
 
   // Get the selected listing - memoized to prevent unnecessary lookups
   const selectedListing = useCallback(() => {
@@ -206,26 +228,44 @@ export default function Home() {
     listItemRefs.current[id] = element;
   };
 
-  // Generate results count text
+  // Get text for results count
   const getResultsCountText = () => {
-    if (isDirectLoading) return "";
-    
-    const totalCount = directListings.length;
     const filteredCount = currentFilteredListings.length;
     
-    if (!searchTerm) {
-      return `Showing all ${totalCount} listings`;
+    if (isDirectLoading) {
+      return "Loading listings...";
+    }
+    
+    if (directError) {
+      return "Error loading listings";
     }
     
     if (filteredCount === 0) {
-      return `No listings match "${searchTerm}"`;
+      if (searchTerm && currentFilter !== "All") {
+        return `No listings match "${searchTerm}" with filter: ${currentFilter}`;
+      } else if (searchTerm) {
+        return `No listings match "${searchTerm}"`;
+      } else if (currentFilter !== "All") {
+        return `No ${currentFilter} listings found`;
+      } else {
+        return "No listings found";
+      }
     }
     
-    if (filteredCount === 1) {
-      return `1 listing matches "${searchTerm}"`;
+    if (searchTerm && currentFilter !== "All") {
+      return `${filteredCount} ${currentFilter} listings match "${searchTerm}"`;
+    } else if (searchTerm) {
+      return `${filteredCount} listings match "${searchTerm}"`;
+    } else if (currentFilter !== "All") {
+      return `${filteredCount} ${currentFilter} listings`;
+    } else {
+      return `${filteredCount} listings`;
     }
-    
-    return `${filteredCount} listings match "${searchTerm}"`;
+  };
+
+  // Handle filter change
+  const handleFilterChange = (filter: ListingFilter) => {
+    setCurrentFilter(filter);
   };
 
   // Debug: Log the state in the component
@@ -248,6 +288,10 @@ export default function Home() {
               onSearchChange={setSearchTerm} 
               inputRef={searchInputRef}
               onKeyDown={handleKeyDown}
+            />
+            <FilterBar 
+              currentFilter={currentFilter} 
+              onFilterChange={handleFilterChange} 
             />
             {!isDirectLoading && (
               <div className="mt-2 text-sm text-gray-500">

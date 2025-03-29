@@ -50,12 +50,14 @@ export interface UnitSummary {
 
 export interface Listing {
 	unitSummaries: {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		reserved: null | any;
 		general: UnitSummary[];
 	};
 	reservedDescriptor: null | string;
 	prioritiesDescriptor: null | string;
 	listingID: string;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	chartTypes: null | any;
 	attributes: {
 		type: string;

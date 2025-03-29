@@ -8,7 +8,7 @@ import ListingDetails from "@/components/ListingDetails";
 import FilterBar, { ListingFilter } from "@/components/FilterBar";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Listing } from "@/types/listings";
-import { fetchListings } from "@/utils/api"; // Correct import path
+import { fetchListings, getCachedListings } from "@/utils/api"; // Import getCachedListings
 
 export default function Home() {
   const [directListings, setDirectListings] = useState<Listing[]>([]);
@@ -27,6 +27,8 @@ export default function Home() {
   const prevSearchTermRef = useRef<string>("");
   // Track if initial data has been loaded
   const initialDataLoadedRef = useRef<boolean>(false);
+  // Track if we're refreshing data
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Focus the search box when the page loads
   useEffect(() => {
@@ -35,46 +37,68 @@ export default function Home() {
     }
   }, []);
 
-  // Add direct fetch for debugging and actual display - only run once
+  // Function to fetch fresh data - use useCallback to avoid dependency issues
+  const fetchFreshData = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      console.log("Fetching fresh listings data");
+      
+      // Use the fetchListings function from the API utility
+      const data = await fetchListings();
+      
+      if (data && data.listings && Array.isArray(data.listings)) {
+        console.log("Fresh listings data loaded");
+        setDirectListings(data.listings);
+        
+        // Select the first listing by default if no selection exists
+        if (data.listings.length > 0 && !selectedListingId) {
+          setSelectedListingId(data.listings[0].Id);
+        }
+        
+        initialDataLoadedRef.current = true;
+      } else {
+        console.error("Invalid data format:", data);
+        setDirectError(new Error("Invalid data format"));
+      }
+    } catch (error) {
+      console.error("Error fetching fresh data:", error);
+      if (!initialDataLoadedRef.current) {
+        // Only set error if we don't have cached data
+        setDirectError(error instanceof Error ? error : new Error(String(error)));
+      }
+    } finally {
+      setIsDirectLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [selectedListingId]); // Add selectedListingId as dependency
+
+  // First, try to load cached data
   useEffect(() => {
-    // Skip if we've already loaded the data
+    // Skip if we've already loaded cached data
     if (initialDataLoadedRef.current) return;
     
-    console.log("Page component mounted - fetching data");
+    console.log("Checking for cached listings data");
+    const cachedData = getCachedListings();
     
-    const fetchDirectly = async () => {
-      try {
-        setIsDirectLoading(true);
-        console.log("Fetching listings from API");
-        
-        // Use the fetchListings function from the API utility
-        const data = await fetchListings();
-        console.log("API fetch succeeded:", data);
-        
-        if (data && data.listings && Array.isArray(data.listings)) {
-          setDirectListings(data.listings);
-          
-          // Select the first listing by default if no selection exists
-          if (data.listings.length > 0 && !selectedListingId) {
-            setSelectedListingId(data.listings[0].Id);
-          }
-          
-          // Mark that we've loaded the initial data
-          initialDataLoadedRef.current = true;
-        } else {
-          console.error("Invalid data format:", data);
-          setDirectError(new Error("Invalid data format"));
-        }
-      } catch (error) {
-        console.error("API fetch error:", error);
-        setDirectError(error instanceof Error ? error : new Error(String(error)));
-      } finally {
-        setIsDirectLoading(false);
+    if (cachedData && cachedData.listings && Array.isArray(cachedData.listings)) {
+      console.log("Using cached listings data for initial render");
+      setDirectListings(cachedData.listings);
+      
+      // Select the first listing by default if no selection exists
+      if (cachedData.listings.length > 0 && !selectedListingId) {
+        setSelectedListingId(cachedData.listings[0].Id);
       }
-    };
-    
-    fetchDirectly();
-  }, [selectedListingId]); // Include selectedListingId to fix the lint warning
+      
+      setIsDirectLoading(false);
+      initialDataLoadedRef.current = true;
+      
+      // After loading cached data, fetch fresh data
+      fetchFreshData();
+    } else {
+      // If no cached data, fetch fresh data directly
+      fetchFreshData();
+    }
+  }, [selectedListingId, fetchFreshData]); // Add fetchFreshData to dependencies
 
   // Helper function to compare dates for sorting
   const compareDates = (a: Listing, b: Listing) => {
@@ -314,7 +338,7 @@ export default function Home() {
   };
 
   return (
-    <Layout>
+    <Layout isRefreshing={isRefreshing}>
       <div className="flex h-full">
         {/* Finder Pane (30% width) */}
         <div 
@@ -348,15 +372,15 @@ export default function Home() {
                 <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-[#0077da] rounded-full" role="status">
                   <span className="sr-only">Loading...</span>
                 </div>
-                <p className="mt-2">Loading listings...</p>
+                <p className="mt-2 text-gray-500">Loading listings...</p>
               </div>
-            ) : directError ? (
+            ) : directError && !directListings.length ? (
               <div className="p-4 text-center text-red-500">
-                <p>Error loading listings: {directError.message}</p>
+                Error loading listings: {directError.message}
               </div>
             ) : currentFilteredListings.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
-                <p>No listings found matching your search.</p>
+                No listings found matching your criteria
               </div>
             ) : (
               currentFilteredListings.map((listing) => (

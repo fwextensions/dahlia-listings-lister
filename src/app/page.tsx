@@ -8,6 +8,7 @@ import ListingDetails from "@/components/ListingDetails";
 import FilterBar, { ListingFilter } from "@/components/FilterBar";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Listing } from "@/types/listings";
+import { fetchListings } from "@/utils/api"; // Correct import path
 
 export default function Home() {
   const [directListings, setDirectListings] = useState<Listing[]>([]);
@@ -44,13 +45,11 @@ export default function Home() {
     const fetchDirectly = async () => {
       try {
         setIsDirectLoading(true);
-        console.log("Directly fetching listings.json");
-        const response = await fetch("/listings.json");
-        if (!response.ok) {
-          throw new Error(`Direct fetch failed with status ${response.status}`);
-        }
-        const data = await response.json();
-        console.log("Direct fetch succeeded:", data);
+        console.log("Fetching listings from API");
+        
+        // Use the fetchListings function from the API utility
+        const data = await fetchListings();
+        console.log("API fetch succeeded:", data);
         
         if (data && data.listings && Array.isArray(data.listings)) {
           setDirectListings(data.listings);
@@ -67,7 +66,7 @@ export default function Home() {
           setDirectError(new Error("Invalid data format"));
         }
       } catch (error) {
-        console.error("Direct fetch error:", error);
+        console.error("API fetch error:", error);
         setDirectError(error instanceof Error ? error : new Error(String(error)));
       } finally {
         setIsDirectLoading(false);

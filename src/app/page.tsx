@@ -6,6 +6,7 @@ import SearchBox from "@/components/SearchBox";
 import ListingItem from "@/components/ListingItem";
 import ListingDetails from "@/components/ListingDetails";
 import FilterBar, { ListingFilter } from "@/components/FilterBar";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Listing } from "@/types/listings";
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
   const [isDirectLoading, setIsDirectLoading] = useState(true);
   const [directError, setDirectError] = useState<Error | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 250); // Debounce the search term with 250ms delay
   const [currentFilter, setCurrentFilter] = useState<ListingFilter>("All");
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +26,13 @@ export default function Home() {
   const prevSearchTermRef = useRef<string>("");
   // Track if initial data has been loaded
   const initialDataLoadedRef = useRef<boolean>(false);
+
+  // Focus the search box when the page loads
+  useEffect(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, []);
 
   // Add direct fetch for debugging and actual display - only run once
   useEffect(() => {
@@ -106,15 +115,15 @@ export default function Home() {
     }
     
     // Then apply the search term filter
-    if (!searchTerm) {
+    if (!debouncedSearchTerm) {
       // Sort by application due date descending
       filtered = [...typeFiltered].sort(compareDates);
     } else {
-      const searchTermLower = searchTerm.toLowerCase();
+      const searchTermLower = debouncedSearchTerm.toLowerCase();
       
       filtered = typeFiltered.filter((listing) => {
         // For Id, only match exactly
-        if (listing.Id === searchTerm) {
+        if (listing.Id === debouncedSearchTerm) {
           return true;
         }
         
@@ -131,7 +140,7 @@ export default function Home() {
     }
     
     return filtered;
-  }, [directListings, searchTerm, currentFilter]); // Add currentFilter as a dependency
+  }, [directListings, debouncedSearchTerm, currentFilter]); // Use debouncedSearchTerm instead of searchTerm
 
   // Memoize the filtered listings to prevent recalculation on every render
   const currentFilteredListings = filteredListings();
@@ -148,8 +157,8 @@ export default function Home() {
     if (isDirectLoading) return;
     
     // Check if search term has changed
-    if (searchTerm !== prevSearchTermRef.current) {
-      prevSearchTermRef.current = searchTerm;
+    if (debouncedSearchTerm !== prevSearchTermRef.current) {
+      prevSearchTermRef.current = debouncedSearchTerm;
     }
     
     // Get the current filtered listings
@@ -169,7 +178,7 @@ export default function Home() {
     if (!isCurrentSelectionInFiltered && currentFiltered.length > 0) {
       setSelectedListingId(currentFiltered[0].Id);
     }
-  }, [searchTerm, currentFilter, isDirectLoading, selectedListingId]);
+  }, [debouncedSearchTerm, currentFilter, isDirectLoading, selectedListingId]); // Use debouncedSearchTerm instead of searchTerm
 
   // Get the selected listing - memoized to prevent unnecessary lookups
   const selectedListing = useCallback(() => {
@@ -199,26 +208,27 @@ export default function Home() {
     const currentFiltered = filteredListingsRef.current;
     if (!currentFiltered.length) return;
     
-    // Get current index in the filtered list
-    const currentIndex = selectedListingId 
-      ? currentFiltered.findIndex(listing => listing.Id === selectedListingId)
-      : -1;
-    
-    if (e.key === "ArrowDown") {
+    // Only process arrow keys
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault(); // Prevent scrolling
       
-      // Move selection down
-      if (currentIndex < currentFiltered.length - 1) {
-        const nextIndex = currentIndex + 1;
-        setSelectedListingId(currentFiltered[nextIndex].Id);
-      }
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault(); // Prevent scrolling
+      // Get current index in the filtered list
+      const currentIndex = selectedListingId 
+        ? currentFiltered.findIndex(listing => listing.Id === selectedListingId)
+        : -1;
       
-      // Move selection up
-      if (currentIndex > 0) {
-        const prevIndex = currentIndex - 1;
-        setSelectedListingId(currentFiltered[prevIndex].Id);
+      if (e.key === "ArrowDown") {
+        // Move selection down
+        if (currentIndex < currentFiltered.length - 1) {
+          const nextIndex = currentIndex + 1;
+          setSelectedListingId(currentFiltered[nextIndex].Id);
+        }
+      } else if (e.key === "ArrowUp") {
+        // Move selection up
+        if (currentIndex > 0) {
+          const prevIndex = currentIndex - 1;
+          setSelectedListingId(currentFiltered[prevIndex].Id);
+        }
       }
     }
   };
@@ -241,10 +251,10 @@ export default function Home() {
     }
     
     if (filteredCount === 0) {
-      if (searchTerm && currentFilter !== "All") {
-        return `No listings match "${searchTerm}" with filter: ${currentFilter}`;
-      } else if (searchTerm) {
-        return `No listings match "${searchTerm}"`;
+      if (debouncedSearchTerm && currentFilter !== "All") {
+        return `No listings match "${debouncedSearchTerm}" with filter: ${currentFilter}`;
+      } else if (debouncedSearchTerm) {
+        return `No listings match "${debouncedSearchTerm}"`;
       } else if (currentFilter !== "All") {
         return `No ${currentFilter} listings found`;
       } else {
@@ -252,10 +262,10 @@ export default function Home() {
       }
     }
     
-    if (searchTerm && currentFilter !== "All") {
-      return `${filteredCount} ${currentFilter} listings match "${searchTerm}"`;
-    } else if (searchTerm) {
-      return `${filteredCount} listings match "${searchTerm}"`;
+    if (debouncedSearchTerm && currentFilter !== "All") {
+      return `${filteredCount} ${currentFilter} listings match "${debouncedSearchTerm}"`;
+    } else if (debouncedSearchTerm) {
+      return `${filteredCount} listings match "${debouncedSearchTerm}"`;
     } else if (currentFilter !== "All") {
       return `${filteredCount} ${currentFilter} listings`;
     } else {

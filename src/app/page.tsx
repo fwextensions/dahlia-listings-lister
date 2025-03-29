@@ -288,11 +288,11 @@ export default function Home() {
       <div className="flex h-full">
         {/* Finder Pane (30% width) */}
         <div 
-          className="w-full md:w-1/3 border-r flex flex-col h-full"
+          className="w-full md:w-1/3 border-r border-gray-200 flex flex-col h-full"
           onKeyDown={handleKeyDown}
           tabIndex={0} // Make the container focusable
         >
-          <div className="p-4 border-b">
+          <div className="p-4 border-b border-gray-200">
             <SearchBox 
               searchTerm={searchTerm} 
               onSearchChange={setSearchTerm} 

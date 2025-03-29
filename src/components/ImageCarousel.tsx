@@ -20,14 +20,14 @@ export default function ImageCarousel({ images }: ImageCarouselProps) {
 
 	if (!images.length) {
 		return (
-			<div className="w-full h-64 bg-gray-200 flex items-center justify-center rounded-lg">
+			<div className="w-full h-64 bg-gray-200 flex items-center justify-center">
 				<p className="text-gray-500">No images available</p>
 			</div>
 		);
 	}
 
 	return (
-		<div className="relative overflow-hidden rounded-lg">
+		<div className="relative overflow-hidden">
 			<div className="overflow-hidden" ref={emblaRef}>
 				<div className="flex">
 					{images.map((image) => (

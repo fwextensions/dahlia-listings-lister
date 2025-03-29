@@ -35,7 +35,7 @@ const ListingItem = forwardRef(({
 
 	return (
 		<div
-			className={`p-3 border-b cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${
+			className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${
 				isSelected ? "bg-[#f0f7ff] border-l-[#0077da]" : "border-l-transparent"
 			} ${className}`}
 			onClick={onClick}

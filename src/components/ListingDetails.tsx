@@ -48,7 +48,7 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 
 	// Create unit summary section if available
 	const unitSummaries = listing.unitSummaries.general.map((unit, index) => (
-		<div key={index} className="border p-4 rounded-lg mb-4">
+		<div key={index} className="border border-gray-200 p-4 mb-4">
 			<h3 className="font-medium text-lg mb-2">{unit.unitType} Unit</h3>
 			<table className="w-full text-sm">
 				<tbody>
@@ -92,7 +92,7 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 				</div>
 			)}
 
-			<div className="bg-white rounded-lg shadow">
+			<div className="bg-white shadow border border-gray-200">
 				<div className="p-6">
 					<h2 className="text-2xl font-bold mb-2">{listing.Name}</h2>
 					
@@ -115,7 +115,7 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 						</a>
 					</div>
 					
-					<div className="overflow-hidden bg-white shadow sm:rounded-lg mb-6">
+					<div className="overflow-hidden bg-white shadow border border-gray-200 mb-6">
 						<div className="px-4 py-5 sm:px-6">
 							<h3 className="text-lg font-medium leading-6 text-gray-900">Listing Details</h3>
 						</div>

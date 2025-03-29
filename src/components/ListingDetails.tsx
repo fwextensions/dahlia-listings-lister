@@ -30,6 +30,7 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 
 	// Define which fields to display and in what order
 	const detailFields = [
+		{ label: "ID", value: listing.Id },
 		{ label: "Name", value: listing.Name },
 		{ label: "Building Name", value: listing.Building_Name },
 		{ label: "Address", value: `${listing.Building_Street_Address}, ${listing.Building_City}, ${listing.Building_State} ${listing.Building_Zip_Code}` },
@@ -47,7 +48,7 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 	];
 
 	// Create unit summary section if available
-	const unitSummaries = listing.unitSummaries.general.map((unit, index) => (
+	const unitSummaries = listing.unitSummaries && listing.unitSummaries.general ? listing.unitSummaries.general.map((unit, index) => (
 		<div key={index} className="border border-gray-200 p-4 mb-4">
 			<h3 className="font-medium text-lg mb-2">{unit.unitType} Unit</h3>
 			<table className="w-full text-sm">
@@ -79,14 +80,17 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 				</tbody>
 			</table>
 		</div>
-	));
+	)) : [];
 
 	// Create the housing site URL
 	const housingUrl = `https://housing.sfgov.org/listings/${listing.listingID || listing.Id}`;
+	
+	// Create the Salesforce URL
+	const salesforceUrl = `https://sfhousing.lightning.force.com/lightning/r/Listing__c/${listing.Id}/view`;
 
 	return (
 		<div className="h-full overflow-y-auto">
-			{listing.Listing_Images.length > 0 && (
+			{listing.Listing_Images && listing.Listing_Images.length > 0 && (
 				<div className="mb-6">
 					<ImageCarousel images={listing.Listing_Images} />
 				</div>
@@ -94,25 +98,44 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 
 			<div className="bg-white shadow border border-gray-200">
 				<div className="p-6">
-					<h2 className="text-2xl font-bold mb-2">{listing.Name}</h2>
-					
-					<div className="mb-6">
-						<a 
-							href={housingUrl} 
-							target="_blank" 
-							rel="noopener noreferrer" 
-							className="inline-flex items-center px-4 py-2 bg-[#0077da] text-white rounded-md hover:bg-[#0066c0] transition-colors"
-						>
-							<svg 
-								xmlns="http://www.w3.org/2000/svg" 
-								className="h-5 w-5 mr-2" 
-								viewBox="0 0 20 20" 
-								fill="currentColor"
+					<div className="flex flex-wrap items-center justify-between mb-6">
+						<h2 className="text-2xl font-bold">{listing.Name}</h2>
+						
+						<div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+							<a 
+								href={housingUrl} 
+								target="_blank" 
+								rel="noopener noreferrer" 
+								className="inline-flex items-center px-4 py-2 bg-[#0077da] text-white rounded-md hover:bg-[#0066c0] transition-colors"
 							>
-								<path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-							</svg>
-							View on Housing Portal
-						</a>
+								<svg 
+									xmlns="http://www.w3.org/2000/svg" 
+									className="h-5 w-5 mr-2" 
+									viewBox="0 0 20 20" 
+									fill="currentColor"
+								>
+									<path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+								</svg>
+								DAHLIA
+							</a>
+							
+							<a 
+								href={salesforceUrl} 
+								target="_blank" 
+								rel="noopener noreferrer" 
+								className="inline-flex items-center px-4 py-2 bg-[#0077da] text-white rounded-md hover:bg-[#0066c0] transition-colors"
+							>
+								<svg 
+									xmlns="http://www.w3.org/2000/svg" 
+									className="h-5 w-5 mr-2" 
+									viewBox="0 0 20 20" 
+									fill="currentColor"
+								>
+									<path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+								</svg>
+								Salesforce
+							</a>
+						</div>
 					</div>
 					
 					<div className="overflow-hidden bg-white shadow border border-gray-200 mb-6">
@@ -136,7 +159,7 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 						</div>
 					</div>
 
-					{unitSummaries.length > 0 && (
+					{listing.unitSummaries && listing.unitSummaries.general && listing.unitSummaries.general.length > 0 && (
 						<div className="mt-8">
 							<h3 className="text-lg font-medium mb-4">Unit Information</h3>
 							{unitSummaries}

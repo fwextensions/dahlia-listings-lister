@@ -197,7 +197,7 @@ export default function Home() {
   useEffect(() => {
     if (selectedListingId && listItemRefs.current[selectedListingId]) {
       listItemRefs.current[selectedListingId]?.scrollIntoView({
-        behavior: "smooth",
+        behavior: "auto",
         block: "nearest",
       });
     }
@@ -208,14 +208,28 @@ export default function Home() {
     const currentFiltered = filteredListingsRef.current;
     if (!currentFiltered.length) return;
     
-    // Only process arrow keys
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    // Only process navigation keys
+    if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "PageUp" || e.key === "PageDown" || e.key === "Home" || e.key === "End") {
       e.preventDefault(); // Prevent scrolling
       
       // Get current index in the filtered list
       const currentIndex = selectedListingId 
         ? currentFiltered.findIndex(listing => listing.Id === selectedListingId)
         : -1;
+      
+      // Calculate number of items visible in the viewport (approximate page size)
+      const listingsContainer = listingsContainerRef.current;
+      let pageSize = 5; // Default page size if we can't calculate
+      
+      if (listingsContainer) {
+        const containerHeight = listingsContainer.clientHeight;
+        // Estimate item height (assuming all items have roughly the same height)
+        const sampleItem = Object.values(listItemRefs.current).find(ref => ref !== null);
+        if (sampleItem) {
+          const itemHeight = sampleItem.clientHeight;
+          pageSize = Math.max(1, Math.floor(containerHeight / itemHeight));
+        }
+      }
       
       if (e.key === "ArrowDown") {
         // Move selection down
@@ -228,6 +242,28 @@ export default function Home() {
         if (currentIndex > 0) {
           const prevIndex = currentIndex - 1;
           setSelectedListingId(currentFiltered[prevIndex].Id);
+        }
+      } else if (e.key === "PageDown") {
+        // Move selection down by a page
+        if (currentIndex < currentFiltered.length - 1) {
+          const nextIndex = Math.min(currentIndex + pageSize, currentFiltered.length - 1);
+          setSelectedListingId(currentFiltered[nextIndex].Id);
+        }
+      } else if (e.key === "PageUp") {
+        // Move selection up by a page
+        if (currentIndex > 0) {
+          const prevIndex = Math.max(currentIndex - pageSize, 0);
+          setSelectedListingId(currentFiltered[prevIndex].Id);
+        }
+      } else if (e.key === "Home") {
+        // Move to the first item in the list
+        if (currentFiltered.length > 0) {
+          setSelectedListingId(currentFiltered[0].Id);
+        }
+      } else if (e.key === "End") {
+        // Move to the last item in the list
+        if (currentFiltered.length > 0) {
+          setSelectedListingId(currentFiltered[currentFiltered.length - 1].Id);
         }
       }
     }
@@ -277,11 +313,6 @@ export default function Home() {
   const handleFilterChange = (filter: ListingFilter) => {
     setCurrentFilter(filter);
   };
-
-  // Debug: Log the state in the component
-  console.log("Page component - filteredListings:", currentFilteredListings.length);
-  console.log("Page component - isDirectLoading:", isDirectLoading);
-  console.log("Page component - directError:", directError);
 
   return (
     <Layout>

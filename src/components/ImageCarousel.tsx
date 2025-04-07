@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ListingImage } from "@/types/listings";
-import Image from "next/image";
 
 interface ImageCarouselProps {
 	images: ListingImage[];
@@ -33,12 +32,10 @@ export default function ImageCarousel({ images }: ImageCarouselProps) {
 					{images.map((image) => (
 						<div key={image.Id} className="relative min-w-full flex-shrink-0">
 							<div className="h-64 w-full relative">
-								<Image
+								<img
 									src={image.displayImageURL || image.Image_URL}
 									alt={image.Image_Description || image.Name}
-									fill
-									className="object-cover"
-									sizes="(max-width: 768px) 100vw, 70vw"
+									className="absolute inset-0 w-full h-full object-cover"
 								/>
 							</div>
 							{image.Image_Description && (

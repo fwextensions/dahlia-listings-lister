@@ -1,11 +1,26 @@
 import { Listing } from "@/types/listings";
 import ImageCarousel from "./ImageCarousel";
+import { useState, useCallback } from "react";
 
 interface ListingDetailsProps {
 	listing: Listing | null;
 }
 
 export default function ListingDetails({ listing }: ListingDetailsProps) {
+	// State to track which item was copied
+	const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+	// Function to copy text to clipboard
+	const handleCopy = useCallback((text: string, index: number) => {
+		navigator.clipboard.writeText(text).then(() => {
+			setCopiedIndex(index);
+			setTimeout(() => setCopiedIndex(null), 1500); // Reset after 1.5 seconds
+		}).catch(err => {
+			console.error("Failed to copy text: ", err);
+			// Optionally, provide user feedback about the error
+		});
+	}, []);
+
 	if (!listing) {
 		return (
 			<div className="h-full flex items-center justify-center">
@@ -49,32 +64,37 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 
 	// Create unit summary section if available
 	const unitSummaries = listing.unitSummaries && listing.unitSummaries.general ? listing.unitSummaries.general.map((unit, index) => (
-		<div key={index} className="border border-gray-200 p-4 mb-4">
+		<div key={index} className="border border-gray-200 p-4 inline-block align-top">
 			<h3 className="font-medium text-lg mb-2">{unit.unitType} Unit</h3>
-			<table className="w-full text-sm">
+			<table className="w-auto text-sm">
 				<tbody>
 					<tr>
-						<td className="py-1 text-gray-600">Total Units:</td>
+						<td className="py-1 text-gray-600 pr-4">Total Units:</td>
 						<td className="py-1 font-medium">{unit.totalUnits}</td>
 					</tr>
 					<tr>
-						<td className="py-1 text-gray-600">Square Feet:</td>
-						<td className="py-1 font-medium">{unit.minSquareFt} - {unit.maxSquareFt}</td>
+						<td className="py-1 text-gray-600 pr-4">Square Feet:</td>
+						<td className="py-1 font-medium">
+							{unit.totalUnits === 1 
+								? unit.minSquareFt 
+								: `${unit.minSquareFt} - ${unit.maxSquareFt}`
+							}
+						</td>
 					</tr>
 					{unit.minPriceWithParking && (
 						<tr>
-							<td className="py-1 text-gray-600">Price (with parking):</td>
+							<td className="py-1 text-gray-600 pr-4">Price (with parking):</td>
 							<td className="py-1 font-medium">${unit.minPriceWithParking.toLocaleString()}</td>
 						</tr>
 					)}
 					{unit.minHoaDuesWithParking && (
 						<tr>
-							<td className="py-1 text-gray-600">HOA Dues:</td>
+							<td className="py-1 text-gray-600 pr-4">HOA Dues:</td>
 							<td className="py-1 font-medium">${unit.minHoaDuesWithParking}/month</td>
 						</tr>
 					)}
 					<tr>
-						<td className="py-1 text-gray-600">Min Occupancy:</td>
+						<td className="py-1 text-gray-600 pr-4">Min Occupancy:</td>
 						<td className="py-1 font-medium">{unit.minOccupancy}</td>
 					</tr>
 				</tbody>
@@ -152,7 +172,24 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 										}`}
 									>
 										<dt className="text-sm font-medium text-gray-500">{field.label}</dt>
-										<dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{field.value}</dd>
+										<dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0 flex justify-between items-center">
+											<span>{field.value}</span>
+											<button 
+												onClick={() => handleCopy(String(field.value), index)}
+												className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-2"
+												title="Copy to clipboard"
+											>
+												{copiedIndex === index ? (
+													<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-green-500">
+														<path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+													</svg>
+												) : (
+													<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+														<path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+													</svg>
+												)}
+											</button>
+										</dd>
 									</div>
 								))}
 							</dl>
@@ -162,7 +199,9 @@ export default function ListingDetails({ listing }: ListingDetailsProps) {
 					{listing.unitSummaries && listing.unitSummaries.general && listing.unitSummaries.general.length > 0 && (
 						<div className="mt-8">
 							<h3 className="text-lg font-medium mb-4">Unit Information</h3>
-							{unitSummaries}
+							<div className="flex flex-wrap gap-4">
+								{unitSummaries}
+							</div>
 						</div>
 					)}
 				</div>

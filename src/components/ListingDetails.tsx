@@ -1,6 +1,6 @@
 import { Listing, LotteryBucket } from "@/types/listings";
 import ImageCarousel from "./ImageCarousel";
-import { useState, useCallback, JSX } from "react";
+import { useState, useCallback, useEffect, JSX, FormEvent, ChangeEvent } from "react";
 
 interface ListingDetailsProps {
 	listing: Listing | null;
@@ -20,6 +20,17 @@ export default function ListingDetails({
 	isPreferencesLoading,
 	preferencesError,
 }: ListingDetailsProps) {
+	// State for NRHP address check form
+	const [addressForm, setAddressForm] = useState({
+		address1: "",
+		city: "",
+		state: "",
+		zip: "",
+	});
+	const [gisResult, setGisResult] = useState<{ message: string; isMatch: boolean } | null>(null);
+	const [isCheckingAddress, setIsCheckingAddress] = useState(false);
+	const [addressCheckError, setAddressCheckError] = useState<Error | null>(null);
+
 	// State to track which item was copied
 	const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -33,6 +44,74 @@ export default function ListingDetails({
 			// Optionally, provide user feedback about the error
 		});
 	}, []);
+
+	// Reset address form when listing changes
+	useEffect(() => {
+		setAddressForm({ address1: "", city: "", state: "", zip: "" });
+		setGisResult(null);
+		setIsCheckingAddress(false);
+		setAddressCheckError(null);
+	}, [listing?.Id]); // Depend on listing ID
+
+	const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+		const { name, value } = e.target;
+		setAddressForm(prev => ({ ...prev, [name]: value.toUpperCase() })); // Uppercase values as per example
+	}, []);
+
+	const handleAddressCheck = useCallback(async (e: FormEvent) => {
+		e.preventDefault(); // Prevent default form submission
+		if (!listing) return;
+
+		setIsCheckingAddress(true);
+		setGisResult(null);
+		setAddressCheckError(null);
+
+		const payload = {
+			address: {
+				address1: addressForm.address1,
+				city: addressForm.city,
+				state: addressForm.state,
+				zip: addressForm.zip,
+			},
+			listing: {
+				Id: listing.Id,
+				Name: listing.Name,
+			},
+		};
+
+		try {
+			const response = await fetch("/api/check-address", { // Use local API route
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(payload),
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const data = await response.json();
+
+			// Expect { isMatch: boolean, message: string } directly from our API route
+			if (data && typeof data.isMatch === "boolean" && typeof data.message === "string") {
+				setGisResult({
+					message: data.message,
+					isMatch: data.isMatch,
+				});
+			} else {
+				// Handle potential error structure { message: string } from our API route
+				const errorMessage = data?.message || "Invalid response format from API";
+				throw new Error(errorMessage);
+			}
+		} catch (error) {
+			console.error("Failed to check address:", error);
+			setAddressCheckError(error instanceof Error ? error : new Error("An unknown error occurred"));
+		} finally {
+			setIsCheckingAddress(false);
+		}
+	}, [listing, addressForm]);
 
 	if (!listing) {
 		return (
@@ -101,6 +180,9 @@ export default function ListingDetails({
 	if (insertIndex > 0) { // Ensure 'Has Waitlist' was found
 		detailFields.splice(insertIndex, 0, preferencesRow);
 	}
+
+	// Check if NRHP preference exists for conditional rendering
+	const hasNrhpPreference = preferences?.some(p => p.preferenceShortCode === "NRHP");
 
 	// Create unit summary section if available
 	const unitSummaries = listing.unitSummaries && listing.unitSummaries.general ? listing.unitSummaries.general.map((unit, index) => (
@@ -253,6 +335,90 @@ export default function ListingDetails({
 					)}
 				</div>
 			</div>
+
+			{/* NRHP Address Check Form */}
+			{hasNrhpPreference && (
+				<div className="mt-6 p-6 bg-gray-50 shadow border border-gray-200">
+					<h3 className="text-xl font-semibold mb-4">Check Address (NRHP)</h3>
+					<form onSubmit={handleAddressCheck}>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+							<div>
+								<label htmlFor="address1" className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+								<input
+									type="text"
+									id="address1"
+									name="address1"
+									value={addressForm.address1}
+									onChange={handleInputChange}
+									className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+									required
+								/>
+							</div>
+							<div>
+								<label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">City</label>
+								<input
+									type="text"
+									id="city"
+									name="city"
+									value={addressForm.city}
+									onChange={handleInputChange}
+									className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+									required
+								/>
+							</div>
+							<div>
+								<label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">State</label>
+								<input
+									type="text"
+									id="state"
+									name="state"
+									value={addressForm.state}
+									onChange={handleInputChange}
+									maxLength={2} // Standard state abbreviation
+									className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+									required
+								/>
+							</div>
+							<div>
+								<label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
+								<input
+									type="text"
+									id="zip"
+									name="zip"
+									value={addressForm.zip}
+									onChange={handleInputChange}
+									pattern="^\d{5}(-\d{4})?$" // Basic US Zip code pattern
+									title="Please enter a valid 5-digit or 9-digit zip code."
+									className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+									required
+								/>
+							</div>
+						</div>
+						<button
+							type="submit"
+							disabled={isCheckingAddress}
+							className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{isCheckingAddress ? "Checking..." : "Check Address"}
+						</button>
+					</form>
+
+					{/* Result/Error Display */}
+					<div className="mt-4">
+						{isCheckingAddress && (
+							<p className="text-sm text-gray-600 italic">Checking address...</p>
+						)}
+						{addressCheckError && (
+							<p className="text-sm text-red-600">Error: {addressCheckError.message}</p>
+						)}
+						{gisResult && (
+							<p className={`text-sm font-medium ${gisResult.isMatch ? "text-green-600" : "text-red-600"}`}>
+								{gisResult.message}
+							</p>
+						)}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

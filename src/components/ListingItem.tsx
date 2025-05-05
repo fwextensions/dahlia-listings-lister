@@ -35,29 +35,29 @@ const ListingItem = forwardRef(({
 
 	return (
 		<div
-			className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${
-				isSelected ? "bg-[#f0f7ff] border-l-[#0077da]" : "border-l-transparent"
+			className={`p-3 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-l-4 ${
+				isSelected ? "bg-[#f0f7ff] dark:bg-blue-900/50 border-l-[#0077da]" : "border-l-transparent"
 			} ${className}`}
 			onClick={onClick}
 			ref={ref}
 		>
-			<h3 className="font-medium text-gray-900 truncate">{listing.Name}</h3>
+			<h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{listing.Name}</h3>
 			
-			<div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-500">
+			<div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
 				<div className="grid grid-cols-[60px_1fr]">
-					<span className="text-gray-500">Due:</span>
+					<span className="text-gray-500 dark:text-gray-400">Due:</span>
 					<span className="font-medium text-left">{formatDueDate()}</span>
 				</div>
 				<div className="grid grid-cols-[60px_1fr]">
-					<span className="text-gray-500">Type:</span>
+					<span className="text-gray-500 dark:text-gray-400">Type:</span>
 					<span className="font-medium text-left">{listing.Listing_Type}</span>
 				</div>
 				<div className="grid grid-cols-[60px_1fr]">
-					<span className="text-gray-500">Tenure:</span>
+					<span className="text-gray-500 dark:text-gray-400">Tenure:</span>
 					<span className="font-medium text-left">{listing.Tenure}</span>
 				</div>
 				<div className="grid grid-cols-[60px_1fr]">
-					<span className="text-gray-500">Units:</span>
+					<span className="text-gray-500 dark:text-gray-400">Units:</span>
 					<span className="font-medium text-left">{listing.Units_Available}</span>
 				</div>
 			</div>

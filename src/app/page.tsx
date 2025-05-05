@@ -425,11 +425,11 @@ export default function Home() {
       <div className="flex h-full">
         {/* Finder Pane (30% width) */}
         <div 
-          className="w-full md:w-1/3 border-r border-gray-200 flex flex-col h-full"
+          className="w-full md:w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full"
           onKeyDown={handleKeyDown}
           tabIndex={0} // Make the container focusable
         >
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <SearchBox 
               searchTerm={searchTerm} 
               onSearchChange={setSearchTerm} 
@@ -441,7 +441,7 @@ export default function Home() {
               onFilterChange={handleFilterChange} 
             />
             {!isDirectLoading && (
-              <div className="mt-2 text-sm text-gray-500">
+              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {getResultsCountText()}
               </div>
             )}
@@ -452,17 +452,17 @@ export default function Home() {
           >
             {isDirectLoading ? (
               <div className="p-4 text-center">
-                <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-[#0077da] rounded-full" role="status">
+                <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-[#0077da] dark:text-blue-400 rounded-full" role="status">
                   <span className="sr-only">Loading...</span>
                 </div>
-                <p className="mt-2 text-gray-500">Loading listings...</p>
+                <p className="mt-2 text-gray-500 dark:text-gray-400">Loading listings...</p>
               </div>
             ) : directError && !directListings.length ? (
-              <div className="p-4 text-center text-red-500">
+              <div className="p-4 text-center text-red-500 dark:text-red-400">
                 Error loading listings: {directError.message}
               </div>
             ) : currentFilteredListings.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 No listings found matching your criteria
               </div>
             ) : (
@@ -490,7 +490,7 @@ export default function Home() {
               preferencesError={preferencesError}
             />
           ) : (
-            <div className="p-4 text-center text-gray-500">
+            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
               <p>No listing selected.</p>
             </div>
           )}

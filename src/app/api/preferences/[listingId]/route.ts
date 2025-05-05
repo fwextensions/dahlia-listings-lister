@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Define the expected structure of the parameters in the dynamic route
-// (No longer needed from context, but kept for clarity if needed elsewhere)
-interface RouteParams {
-  listingId: string;
-}
-
 // Define the structure of the response expected from the external SF Housing API
 interface SfHousingLotteryBucketResponse {
   lotteryBuckets: { 

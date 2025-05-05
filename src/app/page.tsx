@@ -7,7 +7,7 @@ import ListingItem from "@/components/ListingItem";
 import ListingDetails from "@/components/ListingDetails";
 import FilterBar, { ListingFilter } from "@/components/FilterBar";
 import { useDebounce } from "@/hooks/useDebounce";
-import { Listing } from "@/types/listings";
+import { Listing, LotteryBucket } from "@/types/listings"; // Import LotteryBucket
 import { fetchListings, getCachedListings } from "@/utils/api"; // Import getCachedListings
 
 export default function Home() {
@@ -29,6 +29,12 @@ export default function Home() {
   const initialDataLoadedRef = useRef<boolean>(false);
   // Track if we're refreshing data
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // State for preferences
+  const [preferences, setPreferences] = useState<LotteryBucket[] | null>(null);
+  const [isPreferencesLoading, setIsPreferencesLoading] = useState(false);
+  const [preferencesError, setPreferencesError] = useState<Error | null>(null);
+  const preferencesCacheRef = useRef<Record<string, LotteryBucket[]>>({});
 
   // Focus the search box when the page loads
   useEffect(() => {
@@ -99,6 +105,83 @@ export default function Home() {
       fetchFreshData();
     }
   }, [selectedListingId, fetchFreshData]); // Add fetchFreshData to dependencies
+
+  // Fetch preferences when selectedListingId changes
+  const fetchPreferences = useCallback(async (listingId: string) => {
+    if (!listingId) {
+      setPreferences(null);
+      return;
+    }
+
+    // Check cache first
+    if (preferencesCacheRef.current[listingId]) {
+      console.log(`Using cached preferences for listing ${listingId}`);
+      setPreferences(preferencesCacheRef.current[listingId]);
+      setIsPreferencesLoading(false);
+      setPreferencesError(null);
+      return;
+    }
+
+    console.log(`Fetching preferences for listing ${listingId}`);
+    setIsPreferencesLoading(true);
+    setPreferencesError(null);
+    setPreferences(null); // Clear previous preferences
+
+    try {
+      // Use our internal API proxy route
+      const apiUrl = `/api/preferences/${listingId}`;
+      console.log(`Fetching preferences via internal API: ${apiUrl}`);
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        // Try to get error message from response body
+        let errorData = { error: `HTTP error! status: ${response.status}` };
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          // Ignore if response body isn't valid JSON
+          console.warn('Could not parse error response JSON', parseError);
+        }
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      // Expecting { preferences: [...] } or { error: ... }
+      const data = await response.json();
+
+      // Check for backend-reported error
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Check for the expected preferences array
+      if (data && Array.isArray(data.preferences)) {
+        console.log(`Preferences data loaded for listing ${listingId} via proxy`);
+        const fetchedPreferences = data.preferences;
+        setPreferences(fetchedPreferences);
+        // Cache the result
+        preferencesCacheRef.current[listingId] = fetchedPreferences;
+      } else {
+        console.error(`Invalid preferences data format from internal API for listing ${listingId}:`, data);
+        throw new Error("Invalid preferences data format received from server");
+      }
+    } catch (error) {
+      console.error(`Error fetching preferences for listing ${listingId} via proxy:`, error);
+      setPreferencesError(error instanceof Error ? error : new Error(String(error)));
+      setPreferences(null); // Ensure preferences are null on error
+    } finally {
+      setIsPreferencesLoading(false);
+    }
+  }, []); // No dependencies needed as it uses refs and state setters
+
+  useEffect(() => {
+    if (selectedListingId) {
+      fetchPreferences(selectedListingId);
+    } else {
+      // Clear preferences if no listing is selected
+      setPreferences(null);
+      setIsPreferencesLoading(false);
+      setPreferencesError(null);
+    }
+  }, [selectedListingId, fetchPreferences]);
 
   // Helper function to compare dates for sorting
   const compareDates = (a: Listing, b: Listing) => {
@@ -400,7 +483,12 @@ export default function Home() {
         {/* Details Pane (70% width) */}
         <div className="hidden md:block md:w-2/3 p-6 overflow-y-auto">
           {currentSelectedListing ? (
-            <ListingDetails listing={currentSelectedListing} />
+            <ListingDetails
+              listing={currentSelectedListing}
+              preferences={preferences}
+              isPreferencesLoading={isPreferencesLoading}
+              preferencesError={preferencesError}
+            />
           ) : (
             <div className="p-4 text-center text-gray-500">
               <p>No listing selected.</p>

@@ -91,6 +91,11 @@ export interface Listing {
 	imageURL: string;
 }
 
+export interface LotteryBucket {
+  preferenceShortCode: string;
+  // Add other fields if needed in the future
+}
+
 export interface ListingsResponse {
 	listings: Listing[];
 }

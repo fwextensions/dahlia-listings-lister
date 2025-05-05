@@ -229,13 +229,60 @@ export default function ListingDetails({
 		</div>
 	)) || null;
 
+	// Re-define URLs for DAHLIA/Salesforce links
+	const housingUrl = `https://housing.sfgov.org/listings/${listing.listingID || listing.Id}`;
+	const salesforceUrl = `https://sfhousing.lightning.force.com/lightning/r/Listing__c/${listing.Id}/view`;
+
 	return (
 		<div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 rounded-lg shadow">
-			{/* Image Carousel */}
-			<ImageCarousel images={listing.Listing_Images || []} />
+			{/* Conditionally render Image Carousel */}
+			{listing.Listing_Images && listing.Listing_Images.length > 0 && (
+				<div className="mb-6">
+					<ImageCarousel images={listing.Listing_Images} />
+				</div>
+			)}
+
+			{/* Restored Header with Title and Links */}
+			<div className="flex flex-wrap items-center justify-between mb-6">
+				<h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{listing.Name}</h2>
+				<div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+					<a
+						href={housingUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center px-4 py-2 bg-[#0077da] text-white rounded-md hover:bg-[#0066c0] transition-colors"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							className="h-5 w-5 mr-2"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+						>
+							<path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+						</svg>
+						DAHLIA
+					</a>
+					<a
+						href={salesforceUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center px-4 py-2 bg-[#0077da] text-white rounded-md hover:bg-[#0066c0] transition-colors"
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							className="h-5 w-5 mr-2"
+							viewBox="0 0 20 20"
+							fill="currentColor"
+						>
+							<path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+						</svg>
+						Salesforce
+					</a>
+				</div>
+			</div>
 
 			{/* Listing Details Section */}
-			<h2 className="text-2xl font-semibold mb-4 mt-6 text-gray-800 dark:text-gray-200">Listing Details</h2>
+			<h2 className="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Listing Details</h2>
 			<table className="w-full mb-6">
 				<tbody>
 					{detailFields.map((field, index) => (
@@ -333,7 +380,7 @@ export default function ListingDetails({
 						<button
 							type="submit"
 							disabled={isCheckingAddress}
-							className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#0077da] hover:bg-[#005ea2] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077da] disabled:opacity-50 dark:focus:ring-offset-gray-800"
+							className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#0077da] hover:bg-[#0066c0] transition-colors"
 						>
 							{isCheckingAddress ? (
 								<>

@@ -73,7 +73,7 @@ export default function ListingDetails({
 
 	const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
-		setAddressForm(prev => ({ ...prev, [name]: value.toUpperCase() })); // Uppercase values as per example
+		setAddressForm(prev => ({ ...prev, [name]: value }));
 	}, []);
 
 	const handleAddressCheck = useCallback(async (e: FormEvent) => {
@@ -243,11 +243,9 @@ export default function ListingDetails({
 							<td className="py-3 pr-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap align-top font-medium">{field.label}:</td>
 							<td className="py-3 text-sm text-gray-900 dark:text-gray-100 align-top">
 								{typeof field.value === 'string' ? (
-									<span className="flex items-center">
+									<span className="flex items-center justify-between">
 										{field.value}
-										{(field.label === 'ID' || field.label === 'Address') &&
-											<CopyButton textToCopy={field.value} fieldLabel={field.label} index={index} copiedIndex={copiedIndex} handleCopy={handleCopy} />
-										}
+										<CopyButton textToCopy={field.value} fieldLabel={field.label} index={index} copiedIndex={copiedIndex} handleCopy={handleCopy} />
 									</span>
 								) : (
 									field.value // Render JSX directly for Preferences
@@ -286,7 +284,7 @@ export default function ListingDetails({
 									value={addressForm.address1}
 									onChange={handleInputChange}
 									required
-									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm"
+									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
 									placeholder="e.g., 123 MAIN ST"
 								/>
 							</div>
@@ -299,7 +297,7 @@ export default function ListingDetails({
 									value={addressForm.city}
 									onChange={handleInputChange}
 									required
-									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm"
+									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
 									placeholder="e.g., SAN FRANCISCO"
 								/>
 							</div>
@@ -313,7 +311,7 @@ export default function ListingDetails({
 									onChange={handleInputChange}
 									required
 									maxLength={2}
-									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm"
+									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
 									placeholder="e.g., CA"
 								/>
 							</div>
@@ -327,7 +325,7 @@ export default function ListingDetails({
 									onChange={handleInputChange}
 									required
 									pattern="^\d{5}(-\d{4})?$"
-									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm"
+									className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
 									placeholder="e.g., 94103 or 94103-1234"
 								/>
 							</div>

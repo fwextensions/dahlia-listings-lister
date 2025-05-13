@@ -1,5 +1,22 @@
 import { useState, useCallback, useEffect, FormEvent, ChangeEvent, JSX } from "react";
 
+// Minimal types needed from the listing details response
+interface ListingLotteryPreference {
+  Lottery_Preference: {
+    Name?: string;
+    Preference_Short_Code?: string;
+  };
+}
+
+interface ListingForNrhp {
+  Project_ID?: string;
+  Listing_Lottery_Preferences?: ListingLotteryPreference[];
+}
+
+interface ListingDetailsResponseForNrhp {
+  listing: ListingForNrhp;
+}
+
 interface NrhpAddressCheckProps {
     listingId: string;
     listingName: string;
@@ -15,13 +32,56 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     const [gisResult, setGisResult] = useState<{ message: string; isMatch: boolean } | null>(null);
     const [isCheckingAddress, setIsCheckingAddress] = useState(false);
     const [addressCheckError, setAddressCheckError] = useState<Error | null>(null);
+    const [dynamicProjectId, setDynamicProjectId] = useState<string | null>(null);
+    const [isLoadingListingDetails, setIsLoadingListingDetails] = useState(false);
 
     useEffect(() => {
+        // Reset form and results when listingId changes
         setAddressForm({ address1: "", city: "", state: "", zip: "" });
         setGisResult(null);
         setIsCheckingAddress(false);
         setAddressCheckError(null);
-    }, [listingId]); // Depend on listingId from props
+        setDynamicProjectId(null); // Reset project ID for new listing
+
+        if (!listingId) {
+            setIsLoadingListingDetails(false);
+            return;
+        }
+
+        const fetchListingDetails = async () => {
+            setIsLoadingListingDetails(true);
+            try {
+                const response = await fetch(`/api/listings/${listingId}`);
+                if (!response.ok) {
+                    console.error(`Failed to fetch listing details for ${listingId}: ${response.status}`);
+                    // Optionally, set an error state to display to the user
+                    setDynamicProjectId(null); 
+                    return;
+                }
+                const data: ListingDetailsResponseForNrhp = await response.json();
+                
+                const projectID = data.listing?.Project_ID;
+                const hasNrhpPreference = data.listing?.Listing_Lottery_Preferences?.some(
+                    pref => pref.Lottery_Preference.Preference_Short_Code?.toUpperCase() === "NRHP" || 
+                            pref.Lottery_Preference.Name?.toUpperCase().includes("NRHP")
+                );
+
+                if (hasNrhpPreference && projectID) {
+                    setDynamicProjectId(projectID);
+                } else {
+                    setDynamicProjectId(null); // No NRHP preference or no Project_ID found
+                }
+            } catch (error) {
+                console.error("Error fetching or processing listing details:", error);
+                setAddressCheckError(error instanceof Error ? error : new Error("Failed to load listing preference details."));
+                setDynamicProjectId(null); 
+            } finally {
+                setIsLoadingListingDetails(false);
+            }
+        };
+
+        fetchListingDetails();
+    }, [listingId]);
 
     const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -36,6 +96,15 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
         setGisResult(null);
         setAddressCheckError(null);
 
+        const listingPayload: { Id: string; Name: string; Project_ID?: string } = {
+            Id: listingId,
+            Name: listingName,
+        };
+
+        if (dynamicProjectId) {
+            listingPayload.Project_ID = dynamicProjectId;
+        }
+
         const payload = {
             address: {
                 address1: addressForm.address1,
@@ -43,10 +112,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                 state: addressForm.state,
                 zip: addressForm.zip,
             },
-            listing: {
-                Id: listingId,
-                Name: listingName,
-            },
+            listing: listingPayload,
         };
 
         try {
@@ -79,7 +145,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
         } finally {
             setIsCheckingAddress(false);
         }
-    }, [listingId, listingName, addressForm]);
+    }, [listingId, listingName, addressForm, dynamicProjectId]);
 
     return (
         <div className="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800">
@@ -87,6 +153,12 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                 Check if an address falls within the Neighborhood Resident Housing Preference (NRHP) boundary for this listing.
             </p>
+            {isLoadingListingDetails && (
+                <div className="flex items-center justify-center p-4 my-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md">
+                    <span className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full mr-3" role="status"></span>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">Loading listing preference details...</p>
+                </div>
+            )}
             <form onSubmit={handleAddressCheck} className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -146,8 +218,8 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                 </div>
                 <button
                     type="submit"
-                    disabled={isCheckingAddress}
-                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#0077da] hover:bg-[#0066c0] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077da] dark:focus:ring-offset-gray-800"
+                    disabled={isCheckingAddress || isLoadingListingDetails}
+                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#0077da] hover:bg-[#0066c0] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077da] dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isCheckingAddress ? (
                         <>

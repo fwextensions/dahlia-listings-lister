@@ -32,6 +32,7 @@ interface RequestAddress {
 interface RequestListing {
 	Id: string;
 	Name: string;
+	Project_ID?: string;
 }
 
 interface RequestBody {
@@ -69,10 +70,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 	const externalApiUrl = "https://dahlia-full.herokuapp.com/api/v1/addresses/gis-data.json";
 
 	// Construct the payload for the external API
-	const externalPayload = {
+	const externalPayload: any = {
 		address,
-		listing,
-		project_id: "2016-095", // Hardcoded for testing
+		listing: {
+			Id: listing.Id,
+			Name: listing.Name
+			// Project_ID will be added conditionally below
+		},
+		project_id: "2016-095", // Default hardcoded for testing
 		member: {
 			firstName: "First", // Hardcoded test data
 			lastName: "Last",  // Hardcoded test data
@@ -84,6 +89,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 			dob: "1960-01-01", // Hardcoded test data
 		},
 	};
+
+    // If Project_ID is provided in the request's listing object, use it
+    if (listing.Project_ID) {
+        externalPayload.project_id = listing.Project_ID;
+    }
 
 	try {
 		const externalResponse = await fetch(externalApiUrl, {

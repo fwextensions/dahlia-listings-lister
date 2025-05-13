@@ -170,7 +170,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                             value={addressForm.address1}
                             onChange={handleInputChange}
                             required
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-700 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
                             placeholder="e.g., 123 MAIN ST"
                         />
                     </div>
@@ -183,7 +183,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                             value={addressForm.city}
                             onChange={handleInputChange}
                             required
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-700 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
                             placeholder="e.g., SAN FRANCISCO"
                         />
                     </div>
@@ -197,7 +197,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                             onChange={handleInputChange}
                             required
                             maxLength={2}
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-700 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
                             placeholder="e.g., CA"
                         />
                     </div>
@@ -211,7 +211,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                             onChange={handleInputChange}
                             required
                             pattern="^\d{5}(-\d{4})?$"
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-700 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
                             placeholder="e.g., 94103 or 94103-1234"
                         />
                     </div>

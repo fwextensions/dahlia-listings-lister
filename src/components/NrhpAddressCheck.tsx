@@ -34,6 +34,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     const [addressCheckError, setAddressCheckError] = useState<Error | null>(null);
     const [dynamicProjectId, setDynamicProjectId] = useState<string | null>(null);
     const [isLoadingListingDetails, setIsLoadingListingDetails] = useState(false);
+    const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
 
     useEffect(() => {
         // Reset form and results when listingId changes
@@ -42,6 +43,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
         setIsCheckingAddress(false);
         setAddressCheckError(null);
         setDynamicProjectId(null); // Reset project ID for new listing
+        setMapImageUrl(null); // Clear map when listing changes
 
         if (!listingId) {
             setIsLoadingListingDetails(false);
@@ -55,14 +57,14 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                 if (!response.ok) {
                     console.error(`Failed to fetch listing details for ${listingId}: ${response.status}`);
                     // Optionally, set an error state to display to the user
-                    setDynamicProjectId(null); 
+                    setDynamicProjectId(null);
                     return;
                 }
                 const data: ListingDetailsResponseForNrhp = await response.json();
-                
+
                 const projectID = data.listing?.Project_ID;
                 const hasNrhpPreference = data.listing?.Listing_Lottery_Preferences?.some(
-                    pref => pref.Lottery_Preference.Preference_Short_Code?.toUpperCase() === "NRHP" || 
+                    pref => pref.Lottery_Preference.Preference_Short_Code?.toUpperCase() === "NRHP" ||
                             pref.Lottery_Preference.Name?.toUpperCase().includes("NRHP")
                 );
 
@@ -74,7 +76,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
             } catch (error) {
                 console.error("Error fetching or processing listing details:", error);
                 setAddressCheckError(error instanceof Error ? error : new Error("Failed to load listing preference details."));
-                setDynamicProjectId(null); 
+                setDynamicProjectId(null);
             } finally {
                 setIsLoadingListingDetails(false);
             }
@@ -82,6 +84,11 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 
         fetchListingDetails();
     }, [listingId]);
+
+    // Effect to clear map when address form input changes
+    useEffect(() => {
+        setMapImageUrl(null);
+    }, [addressForm.address1, addressForm.city, addressForm.state, addressForm.zip]);
 
     const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -95,6 +102,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
         setIsCheckingAddress(true);
         setGisResult(null);
         setAddressCheckError(null);
+        setMapImageUrl(null); // Clear previous map before new check
 
         const listingPayload: { Id: string; Name: string; Project_ID?: string } = {
             Id: listingId,
@@ -135,6 +143,11 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                     message: data.message,
                     isMatch: data.isMatch,
                 });
+                // Construct full address for the map
+                const fullAddress = `${addressForm.address1}, ${addressForm.city}, ${addressForm.state} ${addressForm.zip}`.trim();
+                if (fullAddress && fullAddress !== ', ,  ') { // Ensure address is not empty
+                    setMapImageUrl(`/api/map-image?address=${encodeURIComponent(fullAddress)}`);
+                }
             } else {
                 const errorMessage = data?.message || "Invalid response format from API";
                 throw new Error(errorMessage);
@@ -162,7 +175,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
             <form onSubmit={handleAddressCheck} className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="address1" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address Line 1</label>
+                        <label htmlFor="address1" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
                         <input
                             type="text"
                             name="address1"
@@ -234,17 +247,28 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                     <p className="mt-2 text-sm text-red-600 dark:text-red-400">Error: {addressCheckError.message}</p>
                 )}
                 {gisResult && (
-                    <div className={`mt-3 p-3 rounded-md text-sm ${
-                        gisResult.isMatch
-                            ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700'
-                            : gisResult.message.includes("not determine") || gisResult.message.includes("not found")
-                                ? 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700'
-                                : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700'
-                        }`}>
+                    <div
+                        className={`mt-4 p-3 rounded-md text-sm ${gisResult.isMatch
+                            ? "bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300"
+                            : "bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-300"
+                            }`}
+                    >
                         {gisResult.message}
                     </div>
                 )}
             </form>
+
+            {/* Display the map image if URL is set */}
+            {mapImageUrl && (
+                <div className="mt-4">
+                    <img
+                        src={mapImageUrl}
+                        alt={`Map of ${addressForm.address1}, ${addressForm.city}, ${addressForm.state}`}
+                        width="640"
+                        className="max-w-full h-auto border border-gray-300 dark:border-gray-600 rounded-md shadow-md"
+                    />
+                </div>
+            )}
         </div>
     );
 }

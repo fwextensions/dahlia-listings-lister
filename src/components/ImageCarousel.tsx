@@ -32,6 +32,7 @@ export default function ImageCarousel({ images }: ImageCarouselProps) {
 					{images.map((image) => (
 						<div key={image.Id} className="relative min-w-full flex-shrink-0">
 							<div className="h-64 w-full relative">
+								{/* eslint-disable-next-line @next/next/no-img-element */}
 								<img
 									src={image.displayImageURL || image.Image_URL}
 									alt={image.Image_Description || image.Name}

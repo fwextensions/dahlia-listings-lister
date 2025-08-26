@@ -21,14 +21,11 @@ interface ApiResponse {
  * bypassing browser CORS restrictions.
  */
 export async function GET(
-  request: NextRequest, // Use NextRequest for easier URL parsing
-): Promise<NextResponse<ApiResponse>> { // Explicitly type the Promise return value
-  
-  // Extract listingId from the URL pathname
-  const pathnameParts = request.nextUrl.pathname.split('/');
-  const listingId = pathnameParts[pathnameParts.length - 1]; // Get the last segment
+  request: NextRequest,
+  { params }: { params: Promise<{ listingId: string }> },
+): Promise<NextResponse<ApiResponse>> {
+  const { listingId } = await params;
 
-  // Validate that listingId is present
   if (!listingId) {
     console.warn('Request received without listingId');
     return NextResponse.json({ error: 'Listing ID is required in the URL path' }, { status: 400 });

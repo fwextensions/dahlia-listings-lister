@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         if (googleJsonError?.error?.message) {
           googleError = googleJsonError.error.message;
         }
-      } catch (e) { /* Ignore parsing error */ }
+      } catch { /* ignore parsing error */ }
       return new NextResponse(`${googleError} (Status: ${mapResponse.statusText})`, {
         status: mapResponse.status,
       });

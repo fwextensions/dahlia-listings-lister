@@ -40,6 +40,26 @@ interface RequestBody {
 	listing: RequestListing;
 }
 
+// payload type for the external API request
+interface ExternalPayload {
+    address: RequestAddress;
+    listing: {
+        Id: string;
+        Name: string;
+    };
+    project_id: string;
+    member: {
+        firstName: string;
+        lastName: string;
+        dob: string;
+    };
+    applicant: {
+        firstName: string;
+        lastName: string;
+        dob: string;
+    };
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse | ApiError>> {
 	let address: RequestAddress;
 	let listing: RequestListing;
@@ -70,7 +90,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 	const externalApiUrl = "https://dahlia-full.herokuapp.com/api/v1/addresses/gis-data.json";
 
 	// Construct the payload for the external API
-	const externalPayload: any = {
+	const externalPayload: ExternalPayload = {
 		address,
 		listing: {
 			Id: listing.Id,

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, FormEvent, ChangeEvent, JSX } from "react";
+import { useState, useCallback, useEffect, FormEvent, ChangeEvent } from "react";
 
 // Minimal types needed from the listing details response
 interface ListingLotteryPreference {
@@ -261,6 +261,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
             {/* Display the map image if URL is set */}
             {mapImageUrl && (
                 <div className="mt-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         src={mapImageUrl}
                         alt={`Map of ${addressForm.address1}, ${addressForm.city}, ${addressForm.state}`}

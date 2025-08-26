@@ -207,11 +207,10 @@ interface ListingDetailsResponse {
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { listingID: string } }
+	request: NextRequest,
+	{ params }: { params: Promise<{ listingID: string }> }
 ) {
-  const awaitedParams = await params; // Await the params object as per the warning
-  const { listingID } = awaitedParams; // Then destructure listingID
+	const { listingID } = await params;
 
   if (!listingID) {
     return NextResponse.json({ error: 'listingID is required' }, { status: 400 });

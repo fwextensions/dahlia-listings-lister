@@ -25,9 +25,7 @@ interface NrhpAddressCheckProps {
 export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddressCheckProps) {
     const [addressForm, setAddressForm] = useState({
         address1: "",
-        city: "",
-        state: "",
-        zip: "",
+        city: "San Francisco",
     });
     const [gisResult, setGisResult] = useState<{ message: string; isMatch: boolean } | null>(null);
     const [isCheckingAddress, setIsCheckingAddress] = useState(false);
@@ -38,7 +36,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 
     useEffect(() => {
         // Reset form and results when listingId changes
-        setAddressForm({ address1: "", city: "", state: "", zip: "" });
+        setAddressForm({ address1: "", city: "San Francisco" });
         setGisResult(null);
         setIsCheckingAddress(false);
         setAddressCheckError(null);
@@ -85,10 +83,11 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
         fetchListingDetails();
     }, [listingId]);
 
-    // Effect to clear map when address form input changes
+    // effect to clear map and results when address form input changes
     useEffect(() => {
         setMapImageUrl(null);
-    }, [addressForm.address1, addressForm.city, addressForm.state, addressForm.zip]);
+        setGisResult(null);
+    }, [addressForm.address1, addressForm.city]);
 
     const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -117,8 +116,8 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
             address: {
                 address1: addressForm.address1,
                 city: addressForm.city,
-                state: addressForm.state,
-                zip: addressForm.zip,
+                state: "CA",
+                zip: "00000",
             },
             listing: listingPayload,
         };
@@ -143,9 +142,11 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                     message: data.message,
                     isMatch: data.isMatch,
                 });
-                // Construct full address for the map
-                const fullAddress = `${addressForm.address1}, ${addressForm.city}, ${addressForm.state} ${addressForm.zip}`.trim();
-                if (fullAddress && fullAddress !== ', ,  ') { // Ensure address is not empty
+                // Construct full address for the map (use CA, omit zip)
+                const addr1 = addressForm.address1.trim();
+                const city = addressForm.city.trim();
+                if (addr1 && city) {
+                    const fullAddress = `${addr1}, ${city}, CA`;
                     setMapImageUrl(`/api/map-image?address=${encodeURIComponent(fullAddress)}`);
                 }
             } else {
@@ -200,48 +201,20 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                             placeholder="e.g., SAN FRANCISCO"
                         />
                     </div>
-                    <div>
-                        <label htmlFor="state" className="block text-sm font-medium text-gray-700 dark:text-gray-300">State</label>
-                        <input
-                            type="text"
-                            name="state"
-                            id="state-nrhp"
-                            value={addressForm.state}
-                            onChange={handleInputChange}
-                            required
-                            maxLength={2}
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-700 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
-                            placeholder="e.g., CA"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="zip" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Zip Code</label>
-                        <input
-                            type="text"
-                            name="zip"
-                            id="zip-nrhp"
-                            value={addressForm.zip}
-                            onChange={handleInputChange}
-                            required
-                            pattern="^\d{5}(-\d{4})?$"
-                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#0077da] focus:ring-[#0077da] bg-white text-gray-900 placeholder-gray-400 dark:bg-gray-700 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 sm:text-sm px-3 py-2"
-                            placeholder="e.g., 94103 or 94103-1234"
-                        />
-                    </div>
                 </div>
                 <button
                     type="submit"
                     disabled={isCheckingAddress || isLoadingListingDetails}
                     className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#0077da] hover:bg-[#0066c0] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077da] dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isCheckingAddress ? (
-                        <>
-                            <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" role="status"></span>
-                            Checking...
-                        </>
-                    ) : (
-                        "Check Address"
-                    )}
+                {isCheckingAddress ? (
+                    <>
+                        <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" role="status"></span>
+                        Checking...
+                    </>
+                ) : (
+                    "Check Address"
+                )}
                 </button>
                 {addressCheckError && (
                     <p className="mt-2 text-sm text-red-600 dark:text-red-400">Error: {addressCheckError.message}</p>
@@ -261,13 +234,20 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
             {/* Display the map image if URL is set */}
             {mapImageUrl && (
                 <div className="mt-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                        src={mapImageUrl}
-                        alt={`Map of ${addressForm.address1}, ${addressForm.city}, ${addressForm.state}`}
-                        width="640"
-                        className="max-w-full h-auto border border-gray-300 dark:border-gray-600 rounded-md shadow-md"
-                    />
+                    <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${addressForm.address1}, ${addressForm.city}, CA`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Open ${addressForm.address1}, ${addressForm.city}, CA in Google Maps`}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={mapImageUrl}
+                            alt={`Map of ${addressForm.address1}, ${addressForm.city}, CA`}
+                            width="640"
+                            className="max-w-full h-auto border border-gray-300 dark:border-gray-600 rounded-md shadow-md"
+                        />
+                    </a>
                 </div>
             )}
         </div>

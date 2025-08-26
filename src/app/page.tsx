@@ -11,13 +11,15 @@ import { Listing, LotteryBucket } from "@/types/listings"; // Import LotteryBuck
 import { fetchListings, getCachedListings } from "@/utils/api"; // Import getCachedListings
 
 export default function Home() {
-  const [directListings, setDirectListings] = useState<Listing[]>([]);
-  const [isDirectLoading, setIsDirectLoading] = useState(true);
-  const [directError, setDirectError] = useState<Error | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearchTerm = useDebounce(searchTerm, 250); // Debounce the search term with 250ms delay
-  const [currentFilter, setCurrentFilter] = useState<ListingFilter>("All");
-  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+	const [directListings, setDirectListings] = useState<Listing[]>([]);
+	const [isDirectLoading, setIsDirectLoading] = useState<boolean>(false);
+	const [directError, setDirectError] = useState<Error | null>(null);
+	const [searchTerm, setSearchTerm] = useState("");
+	const debouncedSearchTerm = useDebounce(searchTerm, 250); // Debounce the search term with 250ms delay
+	const [currentFilter, setCurrentFilter] = useState<ListingFilter>("All");
+	const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  // while we determine if cache exists on the client, avoid showing spinner or empty state
+  const [isBootstrapping, setIsBootstrapping] = useState<boolean>(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listingsContainerRef = useRef<HTMLDivElement>(null);
   const listItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -43,24 +45,46 @@ export default function Home() {
     }
   }, []);
 
+  // load saved filter from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("listingFilter");
+      if (saved === "All" || saved === "Rental" || saved === "Sales") {
+        setCurrentFilter(saved as ListingFilter);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  // persist filter to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("listingFilter", currentFilter);
+    } catch {
+      // ignore storage errors
+    }
+  }, [currentFilter]);
+
+
   // Function to fetch fresh data - use useCallback to avoid dependency issues
   const fetchFreshData = useCallback(async () => {
     try {
       setIsRefreshing(true);
       console.log("Fetching fresh listings data");
-      
+
       // Use the fetchListings function from the API utility
       const data = await fetchListings();
-      
+
       if (data && data.listings && Array.isArray(data.listings)) {
         console.log("Fresh listings data loaded");
         setDirectListings(data.listings);
-        
+
         // Select the first listing by default if no selection exists
         if (data.listings.length > 0 && !selectedListingId) {
           setSelectedListingId(data.listings[0].Id);
         }
-        
+
         initialDataLoadedRef.current = true;
       } else {
         console.error("Invalid data format:", data);
@@ -78,33 +102,25 @@ export default function Home() {
     }
   }, [selectedListingId]); // Add selectedListingId as dependency
 
-  // First, try to load cached data
+  // on mount, load cache (if any) to avoid spinner, then fetch fresh
   useEffect(() => {
-    // Skip if we've already loaded cached data
-    if (initialDataLoadedRef.current) return;
-    
-    console.log("Checking for cached listings data");
-    const cachedData = getCachedListings();
-    
-    if (cachedData && cachedData.listings && Array.isArray(cachedData.listings)) {
-      console.log("Using cached listings data for initial render");
-      setDirectListings(cachedData.listings);
-      
-      // Select the first listing by default if no selection exists
-      if (cachedData.listings.length > 0 && !selectedListingId) {
-        setSelectedListingId(cachedData.listings[0].Id);
-      }
-      
-      setIsDirectLoading(false);
+    const cached = getCachedListings();
+    if (cached && Array.isArray(cached.listings) && cached.listings.length > 0) {
+      console.log("Hydrating from cached listings on mount");
+      setDirectListings(cached.listings);
       initialDataLoadedRef.current = true;
-      
-      // After loading cached data, fetch fresh data
-      fetchFreshData();
+      if (!selectedListingId) {
+        setSelectedListingId(cached.listings[0].Id);
+      }
+      // keep isDirectLoading false to prevent spinner while we refresh
     } else {
-      // If no cached data, fetch fresh data directly
-      fetchFreshData();
+      // no cache; show spinner while fetching
+      setIsDirectLoading(true);
     }
-  }, [selectedListingId, fetchFreshData]); // Add fetchFreshData to dependencies
+    fetchFreshData();
+    setIsBootstrapping(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch preferences when selectedListingId changes
   const fetchPreferences = useCallback(async (listingId: string) => {
@@ -143,7 +159,7 @@ export default function Home() {
         }
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-      
+
       // Expecting { preferences: [...] } or { error: ... }
       const data = await response.json();
 
@@ -188,15 +204,15 @@ export default function Home() {
     // If either date is missing, put it at the end
     if (!a.Application_Due_Date) return 1;
     if (!b.Application_Due_Date) return -1;
-    
+
     // Parse dates
     const dateA = new Date(a.Application_Due_Date);
     const dateB = new Date(b.Application_Due_Date);
-    
+
     // Check for invalid dates
     if (isNaN(dateA.getTime())) return 1;
     if (isNaN(dateB.getTime())) return -1;
-    
+
     // Sort descending (most recent first)
     return dateB.getTime() - dateA.getTime();
   };
@@ -204,9 +220,9 @@ export default function Home() {
   // Filter listings based on search term - memoized to prevent unnecessary recalculations
   const filteredListings = useCallback(() => {
     if (!directListings.length) return [];
-    
+
     let filtered: Listing[];
-    
+
     // First apply the type filter
     let typeFiltered = directListings;
     if (currentFilter !== "All") {
@@ -219,32 +235,32 @@ export default function Home() {
         return true;
       });
     }
-    
+
     // Then apply the search term filter
     if (!debouncedSearchTerm) {
       // Sort by application due date descending
       filtered = [...typeFiltered].sort(compareDates);
     } else {
       const searchTermLower = debouncedSearchTerm.toLowerCase();
-      
+
       filtered = typeFiltered.filter((listing) => {
         // For Id, only match exactly
         if (listing.Id === debouncedSearchTerm) {
           return true;
         }
-        
+
         // For other fields, do case-insensitive partial matching
         return (
           listing.Name.toLowerCase().includes(searchTermLower) ||
           (listing.Tenure && listing.Tenure.toLowerCase().includes(searchTermLower)) ||
           (listing.Status && listing.Status.toLowerCase().includes(searchTermLower)) ||
           (listing.Listing_Type && listing.Listing_Type.toLowerCase().includes(searchTermLower)) ||
-          (listing.RecordType && listing.RecordType.Name && 
+          (listing.RecordType && listing.RecordType.Name &&
            listing.RecordType.Name.toLowerCase().includes(searchTermLower))
         );
       }).sort(compareDates); // Sort filtered results by application due date descending
     }
-    
+
     return filtered;
   }, [directListings, debouncedSearchTerm, currentFilter]); // Use debouncedSearchTerm instead of searchTerm
 
@@ -261,25 +277,25 @@ export default function Home() {
   useEffect(() => {
     // Skip if nothing has loaded yet
     if (isDirectLoading) return;
-    
+
     // Check if search term has changed
     if (debouncedSearchTerm !== prevSearchTermRef.current) {
       prevSearchTermRef.current = debouncedSearchTerm;
     }
-    
+
     // Get the current filtered listings
     const currentFiltered = filteredListingsRef.current;
-    
+
     // If no results match, clear the selection
     if (currentFiltered.length === 0) {
       setSelectedListingId(null);
       return;
     }
-    
+
     // Check if current selection is still in filtered results
-    const isCurrentSelectionInFiltered = selectedListingId && 
+    const isCurrentSelectionInFiltered = selectedListingId &&
       currentFiltered.some(listing => listing.Id === selectedListingId);
-    
+
     // If not, select the first item in the filtered results
     if (!isCurrentSelectionInFiltered && currentFiltered.length > 0) {
       setSelectedListingId(currentFiltered[0].Id);
@@ -289,10 +305,10 @@ export default function Home() {
   // Get the selected listing - memoized to prevent unnecessary lookups
   const selectedListing = useCallback(() => {
     if (!selectedListingId) return null;
-    
+
     // If there are no filtered results, return null
     if (currentFilteredListings.length === 0) return null;
-    
+
     return directListings.find(listing => listing.Id === selectedListingId) || null;
   }, [directListings, selectedListingId, currentFilteredListings.length]); // Include filtered listings length as dependency
 
@@ -313,20 +329,20 @@ export default function Home() {
   const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement | HTMLInputElement>) => {
     const currentFiltered = filteredListingsRef.current;
     if (!currentFiltered.length) return;
-    
+
     // Only process navigation keys
     if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "PageUp" || e.key === "PageDown" || e.key === "Home" || e.key === "End") {
       e.preventDefault(); // Prevent scrolling
-      
+
       // Get current index in the filtered list
-      const currentIndex = selectedListingId 
+      const currentIndex = selectedListingId
         ? currentFiltered.findIndex(listing => listing.Id === selectedListingId)
         : -1;
-      
+
       // Calculate number of items visible in the viewport (approximate page size)
       const listingsContainer = listingsContainerRef.current;
       let pageSize = 5; // Default page size if we can't calculate
-      
+
       if (listingsContainer) {
         const containerHeight = listingsContainer.clientHeight;
         // Estimate item height (assuming all items have roughly the same height)
@@ -336,7 +352,7 @@ export default function Home() {
           pageSize = Math.max(1, Math.floor(containerHeight / itemHeight));
         }
       }
-      
+
       if (e.key === "ArrowDown") {
         // Move selection down
         if (currentIndex < currentFiltered.length - 1) {
@@ -383,15 +399,15 @@ export default function Home() {
   // Get text for results count
   const getResultsCountText = () => {
     const filteredCount = currentFilteredListings.length;
-    
+
     if (isDirectLoading) {
       return "Loading listings...";
     }
-    
+
     if (directError) {
       return "Error loading listings";
     }
-    
+
     if (filteredCount === 0) {
       if (debouncedSearchTerm && currentFilter !== "All") {
         return `No listings match "${debouncedSearchTerm}" with filter: ${currentFilter}`;
@@ -403,7 +419,7 @@ export default function Home() {
         return "No listings found";
       }
     }
-    
+
     if (debouncedSearchTerm && currentFilter !== "All") {
       return `${filteredCount} ${currentFilter} listings match "${debouncedSearchTerm}"`;
     } else if (debouncedSearchTerm) {
@@ -424,30 +440,30 @@ export default function Home() {
     <Layout isRefreshing={isRefreshing}>
       <div className="flex h-full">
         {/* Finder Pane (30% width) */}
-        <div 
+        <div
           className="w-full md:w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full"
           onKeyDown={handleKeyDown}
           tabIndex={0} // Make the container focusable
         >
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <SearchBox 
-              searchTerm={searchTerm} 
-              onSearchChange={setSearchTerm} 
+            <SearchBox
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
               inputRef={searchInputRef}
               onKeyDown={handleKeyDown}
             />
-            <FilterBar 
-              currentFilter={currentFilter} 
-              onFilterChange={handleFilterChange} 
+            <FilterBar
+              currentFilter={currentFilter}
+              onFilterChange={handleFilterChange}
             />
-            {!isDirectLoading && (
+            {!isBootstrapping && !isDirectLoading && (
               <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {getResultsCountText()}
               </div>
             )}
           </div>
-          <div 
-            className="flex-1 overflow-y-auto" 
+          <div
+            className="flex-1 overflow-y-auto"
             ref={listingsContainerRef}
           >
             {isDirectLoading ? (
@@ -461,7 +477,7 @@ export default function Home() {
               <div className="p-4 text-center text-red-500 dark:text-red-400">
                 Error loading listings: {directError.message}
               </div>
-            ) : currentFilteredListings.length === 0 ? (
+            ) : currentFilteredListings.length === 0 && !isBootstrapping ? (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 No listings found matching your criteria
               </div>

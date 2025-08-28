@@ -87,7 +87,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 		return NextResponse.json({ message: "Invalid listing format" }, { status: 400 });
 	}
 
-	const externalApiUrl = "https://dahlia-full.herokuapp.com/api/v1/addresses/gis-data.json";
+	const externalApiUrl = "https://housing.sfgov.org/api/v1/addresses/gis-data.json";
 
 	// Construct the payload for the external API
 	const externalPayload: ExternalPayload = {
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 			Name: listing.Name
 			// Project_ID will be added conditionally below
 		},
-		project_id: "2016-095", // Default hardcoded for testing
+		project_id: "",
 		member: {
 			firstName: "First", // Hardcoded test data
 			lastName: "Last",  // Hardcoded test data

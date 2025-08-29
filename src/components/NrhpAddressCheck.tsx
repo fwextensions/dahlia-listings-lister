@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, FormEvent, ChangeEvent } from "react";
+import NrhpMap from "./NrhpMap";
 
 // Minimal types needed from the listing details response
 interface ListingLotteryPreference {
@@ -18,150 +19,156 @@ interface ListingDetailsResponseForNrhp {
 }
 
 interface NrhpAddressCheckProps {
-    listingId: string;
-    listingName: string;
+  listingId: string;
+  listingName: string;
 }
 
 export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddressCheckProps) {
-    const [addressForm, setAddressForm] = useState({
-        address1: "",
-        city: "San Francisco",
-    });
-    const [gisResult, setGisResult] = useState<{ message: string; isMatch: boolean } | null>(null);
-    const [isCheckingAddress, setIsCheckingAddress] = useState(false);
-    const [addressCheckError, setAddressCheckError] = useState<Error | null>(null);
-    const [dynamicProjectId, setDynamicProjectId] = useState<string | null>(null);
-    const [isLoadingListingDetails, setIsLoadingListingDetails] = useState(false);
-    const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
+  const [addressForm, setAddressForm] = useState({
+    address1: "",
+    city: "San Francisco",
+  });
+  const [gisResult, setGisResult] = useState<{ message: string; isMatch: boolean } | null>(null);
+  const [isCheckingAddress, setIsCheckingAddress] = useState(false);
+  const [addressCheckError, setAddressCheckError] = useState<Error | null>(null);
+  const [dynamicProjectId, setDynamicProjectId] = useState<string | null>(null);
+  const [isLoadingListingDetails, setIsLoadingListingDetails] = useState(false);
+  const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
+  const [mapLatLng, setMapLatLng] = useState<{
+    lat?: number;
+    lng?: number;
+    viewport?: { north: number; south: number; east: number; west: number };
+  } | null>(null);
+  const [showInteractiveMap, setShowInteractiveMap] = useState(false);
 
-    useEffect(() => {
-        // Reset form and results when listingId changes
-        setAddressForm({ address1: "", city: "San Francisco" });
-        setGisResult(null);
-        setIsCheckingAddress(false);
-        setAddressCheckError(null);
-        setDynamicProjectId(null); // Reset project ID for new listing
-        setMapImageUrl(null); // Clear map when listing changes
+  useEffect(() => {
+    // Reset form and results when listingId changes
+    setAddressForm({ address1: "", city: "San Francisco" });
+    setGisResult(null);
+    setIsCheckingAddress(false);
+    setAddressCheckError(null);
+    setDynamicProjectId(null); // Reset project ID for new listing
+    setMapImageUrl(null); // Clear map when listing changes
+    setMapLatLng(null);
+    setShowInteractiveMap(false);
 
-        if (!listingId) {
-            setIsLoadingListingDetails(false);
-            return;
+    if (!listingId) {
+      setIsLoadingListingDetails(false);
+      return;
+    }
+
+    const fetchListingDetails = async () => {
+      setIsLoadingListingDetails(true);
+      try {
+        const response = await fetch(`/api/listings/${listingId}`);
+        if (!response.ok) {
+          console.error(`Failed to fetch listing details for ${listingId}: ${response.status}`);
+          setDynamicProjectId(null);
+          return;
         }
+        const data: ListingDetailsResponseForNrhp = await response.json();
 
-        const fetchListingDetails = async () => {
-            setIsLoadingListingDetails(true);
-            try {
-                const response = await fetch(`/api/listings/${listingId}`);
-                if (!response.ok) {
-                    console.error(`Failed to fetch listing details for ${listingId}: ${response.status}`);
-                    // Optionally, set an error state to display to the user
-                    setDynamicProjectId(null);
-                    return;
-                }
-                const data: ListingDetailsResponseForNrhp = await response.json();
+        const projectID = data.listing?.Project_ID;
+        const hasNrhpPreference = data.listing?.Listing_Lottery_Preferences?.some(
+          pref =>
+            pref.Lottery_Preference.Preference_Short_Code?.toUpperCase() === "NRHP" ||
+            pref.Lottery_Preference.Name?.toUpperCase().includes("NRHP")
+        );
 
-                const projectID = data.listing?.Project_ID;
-                const hasNrhpPreference = data.listing?.Listing_Lottery_Preferences?.some(
-                    pref => pref.Lottery_Preference.Preference_Short_Code?.toUpperCase() === "NRHP" ||
-                            pref.Lottery_Preference.Name?.toUpperCase().includes("NRHP")
-                );
-
-                if (hasNrhpPreference && projectID) {
-                    setDynamicProjectId(projectID);
-                } else {
-                    setDynamicProjectId(null); // No NRHP preference or no Project_ID found
-                }
-            } catch (error) {
-                console.error("Error fetching or processing listing details:", error);
-                setAddressCheckError(error instanceof Error ? error : new Error("Failed to load listing preference details."));
-                setDynamicProjectId(null);
-            } finally {
-                setIsLoadingListingDetails(false);
-            }
-        };
-
-        fetchListingDetails();
-    }, [listingId]);
-
-    // effect to clear map and results when address form input changes
-    useEffect(() => {
-        setMapImageUrl(null);
-        setGisResult(null);
-    }, [addressForm.address1, addressForm.city]);
-
-    const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setAddressForm(prev => ({ ...prev, [name]: value }));
-    }, []);
-
-    const handleAddressCheck = useCallback(async (e: FormEvent) => {
-        e.preventDefault();
-        if (!listingId) return;
-
-        setIsCheckingAddress(true);
-        setGisResult(null);
-        setAddressCheckError(null);
-        setMapImageUrl(null); // Clear previous map before new check
-
-        const listingPayload: { Id: string; Name: string; Project_ID?: string } = {
-            Id: listingId,
-            Name: listingName,
-        };
-
-        if (dynamicProjectId) {
-            listingPayload.Project_ID = dynamicProjectId;
+        if (hasNrhpPreference && projectID) {
+          setDynamicProjectId(projectID);
+        } else {
+          setDynamicProjectId(null);
         }
+      } catch (error) {
+        console.error("Error fetching or processing listing details:", error);
+        setAddressCheckError(error instanceof Error ? error : new Error("Failed to load listing preference details."));
+        setDynamicProjectId(null);
+      } finally {
+        setIsLoadingListingDetails(false);
+      }
+    };
 
-        const payload = {
-            address: {
-                address1: addressForm.address1,
-                city: addressForm.city,
-                state: "CA",
-                zip: "00000",
-            },
-            listing: listingPayload,
-        };
+    fetchListingDetails();
+  }, [listingId]);
 
-        try {
-            const response = await fetch("/api/check-address", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
+  // effect to clear map and results when address form input changes
+  useEffect(() => {
+    setMapImageUrl(null);
+    setGisResult(null);
+    setMapLatLng(null);
+    setShowInteractiveMap(false);
+  }, [addressForm.address1, addressForm.city]);
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+  const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAddressForm(prev => ({ ...prev, [name]: value }));
+  }, []);
 
-            const data = await response.json();
+  const handleAddressCheck = useCallback(async (e: FormEvent) => {
+    e.preventDefault();
+    if (!listingId) return;
 
-            if (data && typeof data.isMatch === "boolean" && typeof data.message === "string") {
-                setGisResult({
-                    message: data.message,
-                    isMatch: data.isMatch,
-                });
-                // Construct full address for the map (use CA, omit zip)
-                const addr1 = addressForm.address1.trim();
-                const city = addressForm.city.trim();
-                if (addr1 && city) {
-                    const fullAddress = `${addr1}, ${city}, CA`;
-                    setMapImageUrl(`/api/map-image?address=${encodeURIComponent(fullAddress)}`);
-                }
-            } else {
-                const errorMessage = data?.message || "Invalid response format from API";
-                throw new Error(errorMessage);
-            }
-        } catch (error) {
-            console.error("Failed to check address:", error);
-            setAddressCheckError(error instanceof Error ? error : new Error("An unknown error occurred"));
-        } finally {
-            setIsCheckingAddress(false);
+    setIsCheckingAddress(true);
+    setGisResult(null);
+    setAddressCheckError(null);
+    setMapImageUrl(null);
+    setMapLatLng(null);
+
+    const listingPayload: { Id: string; Name: string; Project_ID?: string } = {
+      Id: listingId,
+      Name: listingName,
+    };
+    if (dynamicProjectId) {
+      listingPayload.Project_ID = dynamicProjectId;
+    }
+
+    const payload = {
+      address: {
+        address1: addressForm.address1,
+        city: addressForm.city,
+        state: "CA",
+        zip: "00000",
+      },
+      listing: listingPayload,
+    };
+
+    try {
+      const response = await fetch("/api/check-address", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data && typeof data.isMatch === "boolean" && typeof data.message === "string") {
+        setGisResult({ message: data.message, isMatch: data.isMatch });
+        const addr1 = addressForm.address1.trim();
+        const city = addressForm.city.trim();
+        if (addr1 && city) {
+          const fullAddress = `${addr1}, ${city}, CA`;
+          setMapImageUrl(`/api/map-image?address=${encodeURIComponent(fullAddress)}`);
         }
-    }, [listingId, listingName, addressForm, dynamicProjectId]);
+        if (typeof data.lat === "number" && typeof data.lng === "number") {
+          setMapLatLng({ lat: data.lat, lng: data.lng, viewport: data.viewport });
+        } else {
+          setMapLatLng(null);
+        }
+      } else {
+        const errorMessage = data?.message || "Invalid response format from API";
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Failed to check address:", error);
+      setAddressCheckError(error instanceof Error ? error : new Error("An unknown error occurred"));
+    } finally {
+      setIsCheckingAddress(false);
+    }
+  }, [listingId, listingName, addressForm, dynamicProjectId]);
 
-    return (
+  return (
         <div className="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800">
             <h3 className="font-medium text-lg mb-3 text-gray-800 dark:text-gray-200">NRHP Boundary Check</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
@@ -230,6 +237,37 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                     </div>
                 )}
             </form>
+
+            {/* Interactive map toggle and display */}
+            {gisResult && dynamicProjectId && addressForm.address1 && addressForm.city && (
+                <div className="mt-4">
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowInteractiveMap(v => !v)}
+                            className="inline-flex justify-center py-1.5 px-3 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        >
+                            {showInteractiveMap ? "Hide interactive map" : "Show interactive map"}
+                        </button>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                            <span className="mr-3"><span className="inline-block w-3 h-3 align-middle rounded-sm mr-1" style={{ backgroundColor: "#22c55e" }}></span>inside</span>
+                            <span><span className="inline-block w-3 h-3 align-middle rounded-sm mr-1" style={{ backgroundColor: "#f59e0b" }}></span>outside</span>
+                        </div>
+                    </div>
+                    {showInteractiveMap && (
+                        <div className="mt-3">
+                            <NrhpMap
+                                projectId={dynamicProjectId}
+                                address={`${addressForm.address1}, ${addressForm.city}, CA`}
+                                isMatch={gisResult?.isMatch ?? null}
+                                lat={mapLatLng?.lat}
+                                lng={mapLatLng?.lng}
+                                viewport={mapLatLng?.viewport}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Display the map image if URL is set */}
             {mapImageUrl && (

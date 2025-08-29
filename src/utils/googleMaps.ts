@@ -20,7 +20,7 @@ export const loadGoogleMapsApi = (apiKey: string): Promise<any> => {
 		}
 		const script = document.createElement("script");
 		script.id = "gmaps-js";
-		script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=geometry`;
+		script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=geometry,marker`;
 		script.async = true;
 		script.defer = true;
 		script.onload = () => {

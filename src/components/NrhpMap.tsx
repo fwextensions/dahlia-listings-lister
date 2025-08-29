@@ -116,7 +116,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			if (!markerEnabled) {
 				if (markerRef.current) {
 					try {
-						markerRef.current.setMap(null);
+						// AdvancedMarkerElement: remove by detaching from map
+						markerRef.current.map = null;
 					} catch {}
 					markerRef.current = null;
 				}
@@ -126,7 +127,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			if (typeof lat !== "number" || typeof lng !== "number") {
 				if (markerRef.current) {
 					try {
-						markerRef.current.setMap(null);
+						// AdvancedMarkerElement: remove by detaching from map
+						markerRef.current.map = null;
 					} catch {}
 					markerRef.current = null;
 				}
@@ -134,12 +136,17 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			}
 			const loc = new google.maps.LatLng(lat, lng);
 			if (!markerRef.current) {
-				markerRef.current = new google.maps.Marker({
-					title: address,
+				// use AdvancedMarkerElement per Google deprecation notice
+				markerRef.current = new google.maps.marker.AdvancedMarkerElement({
 					map,
+					position: loc,
+					title: address,
 				});
+			} else {
+				// update position and ensure it's attached to the current map
+				markerRef.current.position = loc;
+				if (markerRef.current.map !== map) markerRef.current.map = map;
 			}
-			markerRef.current.setPosition(loc);
 			bounds.extend(loc);
 			return Promise.resolve<void>(undefined);
 		};

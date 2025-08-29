@@ -23,8 +23,6 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 	const [mapsError, setMapsError] = useState<string | null>(null);
 	const [isLoadingMaps, setIsLoadingMaps] = useState(false);
 	const [mapsReady, setMapsReady] = useState(false);
-	const [featuresCount, setFeaturesCount] = useState<number | null>(null);
-	const [geocodeStatus, setGeocodeStatus] = useState<string | null>(null);
 
 	const { data: geojson, isLoading, error } = useNrhpGeometry(projectId);
 
@@ -48,7 +46,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 						zoom: 12,
 						streetViewControl: false,
 						mapTypeControl: false,
-						fullscreenControl: false,
+						fullscreenControl: true,
 					});
 				}
 				setMapsReady(true);
@@ -89,16 +87,14 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 					strokeWeight: 2,
 				});
 				// expand bounds to polygon geometry
-				let count = 0;
 				map.data.forEach((feature: any) => {
 					const geom = feature.getGeometry();
 					if (!geom) return;
 					try {
 						geom.forEachLatLng((latLng: any) => bounds.extend(latLng));
 					} catch {}
-					count += 1;
 				});
-				setFeaturesCount(count);
+				// removed debug featuresCount
 			} catch (e) {
 				// swallow malformed geojson errors but keep map usable
 			}
@@ -124,7 +120,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 				}
 				markerRef.current.setPosition(loc);
 				bounds.extend(loc);
-				setGeocodeStatus("BYPASS");
+				// removed debug geocode status
 				return Promise.resolve<void>(undefined);
 			}
 			if (!address) return Promise.resolve<void>(undefined);
@@ -148,14 +144,14 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 						}
 						markerRef.current.setPosition(loc);
 						bounds.extend(loc);
-						setGeocodeStatus("OK");
+						// removed debug geocode status
 					} else {
 						// if geocode fails, clear marker
 						if (markerRef.current) {
 							markerRef.current.setMap(null);
 							markerRef.current = null;
 						}
-						setGeocodeStatus(status || "UNKNOWN_ERROR");
+						// removed debug geocode status
 					}
 					resolve();
 				});
@@ -187,12 +183,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 					{mapsError || (error as any)?.message || "Failed to load map"}
 				</div>
 			)}
-			{featuresCount !== null && (
-				<div className="mt-1 text-[11px] text-gray-600 dark:text-gray-400">features: {featuresCount}</div>
-			)}
-			{geocodeStatus && (
-				<div className="mt-1 text-[11px] text-gray-600 dark:text-gray-400">geocode: {geocodeStatus}</div>
-			)}
+			{/* removed debug labels for features and geocode status */}
 			{!isLoading && geojson && Array.isArray(geojson.features) && geojson.features.length === 0 && (
 				<div className="mt-2 p-2 text-xs rounded border border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-700">
 					No NRHP boundary geometry found for this Project_ID.

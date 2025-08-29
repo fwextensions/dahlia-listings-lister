@@ -33,13 +33,13 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
   const [addressCheckError, setAddressCheckError] = useState<Error | null>(null);
   const [dynamicProjectId, setDynamicProjectId] = useState<string | null>(null);
   const [isLoadingListingDetails, setIsLoadingListingDetails] = useState(false);
-  const [mapImageUrl, setMapImageUrl] = useState<string | null>(null);
+  // removed static map image state
   const [mapLatLng, setMapLatLng] = useState<{
     lat?: number;
     lng?: number;
     viewport?: { north: number; south: number; east: number; west: number };
   } | null>(null);
-  const [showInteractiveMap, setShowInteractiveMap] = useState(false);
+  // removed show/hide interactive map toggle
 
   useEffect(() => {
     // Reset form and results when listingId changes
@@ -48,9 +48,9 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     setIsCheckingAddress(false);
     setAddressCheckError(null);
     setDynamicProjectId(null); // Reset project ID for new listing
-    setMapImageUrl(null); // Clear map when listing changes
+    // no static map to clear
     setMapLatLng(null);
-    setShowInteractiveMap(false);
+    // always show interactive map when results exist
 
     if (!listingId) {
       setIsLoadingListingDetails(false);
@@ -92,12 +92,10 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     fetchListingDetails();
   }, [listingId]);
 
-  // effect to clear map and results when address form input changes
+  // effect to clear results when address form input changes
   useEffect(() => {
-    setMapImageUrl(null);
     setGisResult(null);
     setMapLatLng(null);
-    setShowInteractiveMap(false);
   }, [addressForm.address1, addressForm.city]);
 
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +110,6 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     setIsCheckingAddress(true);
     setGisResult(null);
     setAddressCheckError(null);
-    setMapImageUrl(null);
     setMapLatLng(null);
 
     const listingPayload: { Id: string; Name: string; Project_ID?: string } = {
@@ -145,12 +142,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
       const data = await response.json();
       if (data && typeof data.isMatch === "boolean" && typeof data.message === "string") {
         setGisResult({ message: data.message, isMatch: data.isMatch });
-        const addr1 = addressForm.address1.trim();
-        const city = addressForm.city.trim();
-        if (addr1 && city) {
-          const fullAddress = `${addr1}, ${city}, CA`;
-          setMapImageUrl(`/api/map-image?address=${encodeURIComponent(fullAddress)}`);
-        }
+        // removed static map image update
         if (typeof data.lat === "number" && typeof data.lng === "number") {
           setMapLatLng({ lat: data.lat, lng: data.lng, viewport: data.viewport });
         } else {
@@ -238,54 +230,17 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                 )}
             </form>
 
-            {/* Interactive map toggle and display */}
+            {/* always show interactive map when we have a GIS result and required data */}
             {gisResult && dynamicProjectId && addressForm.address1 && addressForm.city && (
                 <div className="mt-4">
-                    <div className="flex items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setShowInteractiveMap(v => !v)}
-                            className="inline-flex justify-center py-1.5 px-3 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                        >
-                            {showInteractiveMap ? "Hide interactive map" : "Show interactive map"}
-                        </button>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                            <span className="mr-3"><span className="inline-block w-3 h-3 align-middle rounded-sm mr-1" style={{ backgroundColor: "#22c55e" }}></span>inside</span>
-                            <span><span className="inline-block w-3 h-3 align-middle rounded-sm mr-1" style={{ backgroundColor: "#f59e0b" }}></span>outside</span>
-                        </div>
-                    </div>
-                    {showInteractiveMap && (
-                        <div className="mt-3">
-                            <NrhpMap
-                                projectId={dynamicProjectId}
-                                address={`${addressForm.address1}, ${addressForm.city}, CA`}
-                                isMatch={gisResult?.isMatch ?? null}
-                                lat={mapLatLng?.lat}
-                                lng={mapLatLng?.lng}
-                                viewport={mapLatLng?.viewport}
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Display the map image if URL is set */}
-            {mapImageUrl && (
-                <div className="mt-4">
-                    <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${addressForm.address1}, ${addressForm.city}, CA`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`Open ${addressForm.address1}, ${addressForm.city}, CA in Google Maps`}
-                    >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={mapImageUrl}
-                            alt={`Map of ${addressForm.address1}, ${addressForm.city}, CA`}
-                            width="640"
-                            className="max-w-full h-auto border border-gray-300 dark:border-gray-600 rounded-md shadow-md"
-                        />
-                    </a>
+                    <NrhpMap
+                        projectId={dynamicProjectId}
+                        address={`${addressForm.address1}, ${addressForm.city}, CA`}
+                        isMatch={gisResult?.isMatch ?? null}
+                        lat={mapLatLng?.lat}
+                        lng={mapLatLng?.lng}
+                        viewport={mapLatLng?.viewport}
+                    />
                 </div>
             )}
         </div>

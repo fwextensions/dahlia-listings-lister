@@ -40,6 +40,8 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     viewport?: { north: number; south: number; east: number; west: number };
   } | null>(null);
   // removed show/hide interactive map toggle
+  const [shouldShowMap, setShouldShowMap] = useState(false);
+  const [markerEnabled, setMarkerEnabled] = useState(false);
 
   useEffect(() => {
     // Reset form and results when listingId changes
@@ -51,6 +53,8 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     // no static map to clear
     setMapLatLng(null);
     // always show interactive map when results exist
+    setShouldShowMap(false);
+    setMarkerEnabled(false);
 
     if (!listingId) {
       setIsLoadingListingDetails(false);
@@ -92,10 +96,11 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     fetchListingDetails();
   }, [listingId]);
 
-  // effect to clear results when address form input changes
+  // when address input changes, keep map visible but clear the marker
   useEffect(() => {
     setGisResult(null);
     setMapLatLng(null);
+    setMarkerEnabled(false);
   }, [addressForm.address1, addressForm.city]);
 
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -111,6 +116,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     setGisResult(null);
     setAddressCheckError(null);
     setMapLatLng(null);
+    setMarkerEnabled(false);
 
     const listingPayload: { Id: string; Name: string; Project_ID?: string } = {
       Id: listingId,
@@ -148,6 +154,8 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
         } else {
           setMapLatLng(null);
         }
+        setShouldShowMap(true);
+        setMarkerEnabled(true);
       } else {
         const errorMessage = data?.message || "Invalid response format from API";
         throw new Error(errorMessage);
@@ -230,8 +238,8 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                 )}
             </form>
 
-            {/* always show interactive map when we have a GIS result and required data */}
-            {gisResult && dynamicProjectId && addressForm.address1 && addressForm.city && (
+            {/* always show interactive map once shown for this listing; remove marker while editing */}
+            {shouldShowMap && dynamicProjectId && (
                 <div className="mt-4">
                     <NrhpMap
                         projectId={dynamicProjectId}
@@ -240,6 +248,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                         lat={mapLatLng?.lat}
                         lng={mapLatLng?.lng}
                         viewport={mapLatLng?.viewport}
+                        markerEnabled={markerEnabled}
                     />
                 </div>
             )}

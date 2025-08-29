@@ -12,11 +12,12 @@ interface NrhpMapProps {
 	lat?: number;
 	lng?: number;
 	viewport?: { north: number; south: number; east: number; west: number };
+	markerEnabled?: boolean;
 }
 
 const MAP_HEIGHT_PX = 420;
 
-const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapProps) => {
+const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnabled = true }: NrhpMapProps) => {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const mapRef = useRef<any>(null);
 	const markerRef = useRef<any>(null);
@@ -110,6 +111,16 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 
 		// place marker using server-provided lat/lng if available, else geocode
 		const placeMarker = () => {
+			// if marker is disabled, remove existing marker and do nothing
+			if (!markerEnabled) {
+				if (markerRef.current) {
+					try {
+						markerRef.current.setMap(null);
+					} catch {}
+					markerRef.current = null;
+				}
+				return Promise.resolve<void>(undefined);
+			}
 			if (typeof lat === "number" && typeof lng === "number") {
 				const loc = new google.maps.LatLng(lat, lng);
 				if (!markerRef.current) {
@@ -168,7 +179,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport }: NrhpMapPro
 				// remove listener later automatically since addListenerOnce
 			}
 		});
-	}, [mapsReady, geojson, address, isMatch, lat, lng, viewport]);
+	}, [mapsReady, geojson, address, isMatch, lat, lng, viewport, markerEnabled]);
 
 	return (
 		<div>

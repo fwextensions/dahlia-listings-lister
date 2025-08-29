@@ -14,14 +14,17 @@ interface NrhpMapProps {
 	lng?: number;
 	viewport?: { north: number; south: number; east: number; west: number };
 	markerEnabled?: boolean;
+	buildingLat?: number;
+	buildingLng?: number;
 }
 
 const MAP_HEIGHT_PX = 420;
 
-const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnabled = true }: NrhpMapProps) => {
+const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnabled = true, buildingLat, buildingLng }: NrhpMapProps) => {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const mapRef = useRef<any>(null);
 	const markerRef = useRef<any>(null);
+	const buildingMarkerRef = useRef<any>(null);
 	const [mapsError, setMapsError] = useState<string | null>(null);
 	const [isLoadingMaps, setIsLoadingMaps] = useState(false);
 	const [mapsReady, setMapsReady] = useState(false);
@@ -136,11 +139,19 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			}
 			const loc = new google.maps.LatLng(lat, lng);
 			if (!markerRef.current) {
-				// use AdvancedMarkerElement per Google deprecation notice
+				// use AdvancedMarkerElement per Google deprecation notice, with colored Pin for address
+				const addressPinColor = isMatch === true ? "#16a34a" : isMatch === false ? "#d97706" : "#2563eb";
+				const addressPin = new google.maps.marker.PinElement({
+					background: addressPinColor,
+					borderColor: "#111827",
+					glyphColor: "#ffffff",
+				});
 				markerRef.current = new google.maps.marker.AdvancedMarkerElement({
 					map,
 					position: loc,
 					title: address,
+					content: addressPin.element,
+					zIndex: 10,
 				});
 			} else {
 				// update position and ensure it's attached to the current map
@@ -151,7 +162,51 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			return Promise.resolve<void>(undefined);
 		};
 
+		// place building marker if buildingLat/buildingLng are available; otherwise fall back to polygon center
+		const placeBuildingMarker = () => {
+			let loc: any = null;
+			if (typeof buildingLat === "number" && typeof buildingLng === "number") {
+				loc = new google.maps.LatLng(buildingLat, buildingLng);
+			} else {
+				// fallback: use bounds center if polygon contributed to bounds
+				try {
+					if (!bounds.isEmpty()) {
+						loc = bounds.getCenter();
+					}
+				} catch {}
+			}
+			if (!loc) {
+				if (buildingMarkerRef.current) {
+					try {
+						buildingMarkerRef.current.map = null;
+					} catch {}
+					buildingMarkerRef.current = null;
+				}
+				return;
+			}
+			if (!buildingMarkerRef.current) {
+				const buildingPin = new google.maps.marker.PinElement({
+					background: "#7c3aed", // purple for building
+					borderColor: "#111827",
+					glyphColor: "#ffffff",
+				});
+				buildingMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({
+					map,
+					position: loc,
+					title: "Building location",
+					content: buildingPin.element,
+					zIndex: 20,
+				});
+			} else {
+				buildingMarkerRef.current.position = loc;
+				if (buildingMarkerRef.current.map !== map) buildingMarkerRef.current.map = map;
+			}
+			bounds.extend(loc);
+		};
+
 		placeMarker().then(() => {
+			// place building marker after address marker, then fit bounds
+			placeBuildingMarker();
 			// fit bounds if we have something; else keep default
 			if (!bounds.isEmpty()) {
 				map.fitBounds(bounds);
@@ -161,7 +216,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				// remove listener later automatically since addListenerOnce
 			}
 		});
-	}, [mapsReady, geojson, address, isMatch, lat, lng, viewport, markerEnabled]);
+	}, [mapsReady, geojson, address, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng]);
 
 	return (
 		<div>

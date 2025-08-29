@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, KeyboardEvent as ReactKeyboardEvent, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import SearchBox from "@/components/SearchBox";
 import ListingItem from "@/components/ListingItem";
@@ -33,10 +34,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // State for preferences
-  const [preferences, setPreferences] = useState<LotteryBucket[] | null>(null);
-  const [isPreferencesLoading, setIsPreferencesLoading] = useState(false);
-  const [preferencesError, setPreferencesError] = useState<Error | null>(null);
-  const preferencesCacheRef = useRef<Record<string, LotteryBucket[]>>({});
+  // handled via react-query below
 
   // Focus the search box when the page loads
   useEffect(() => {
@@ -122,82 +120,39 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch preferences when selectedListingId changes
-  const fetchPreferences = useCallback(async (listingId: string) => {
-    if (!listingId) {
-      setPreferences(null);
-      return;
-    }
-
-    // Check cache first
-    if (preferencesCacheRef.current[listingId]) {
-      console.log(`Using cached preferences for listing ${listingId}`);
-      setPreferences(preferencesCacheRef.current[listingId]);
-      setIsPreferencesLoading(false);
-      setPreferencesError(null);
-      return;
-    }
-
-    console.log(`Fetching preferences for listing ${listingId}`);
-    setIsPreferencesLoading(true);
-    setPreferencesError(null);
-    setPreferences(null); // Clear previous preferences
-
-    try {
-      // Use our internal API proxy route
-      const apiUrl = `/api/preferences/${listingId}`;
-      console.log(`Fetching preferences via internal API: ${apiUrl}`);
-      const response = await fetch(apiUrl);
+  // Preferences query keyed by selected listing; auto-updates on change
+  const {
+    data: preferences,
+    isLoading: prefsIsLoading,
+    isFetching: prefsIsFetching,
+    error: preferencesError,
+  } = useQuery<LotteryBucket[], Error>({
+    queryKey: ["preferences", selectedListingId],
+    enabled: !!selectedListingId,
+    queryFn: async ({ signal }) => {
+      const id = selectedListingId as string;
+      const response = await fetch(`/api/preferences/${id}`, { signal });
       if (!response.ok) {
-        // Try to get error message from response body
-        let errorData = { error: `HTTP error! status: ${response.status}` };
+        let errorData: { error?: string } = {};
         try {
           errorData = await response.json();
-        } catch (parseError) {
-          // Ignore if response body isn't valid JSON
-          console.warn('Could not parse error response JSON', parseError);
+        } catch {
+          // ignore parse errors
         }
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-
-      // Expecting { preferences: [...] } or { error: ... }
       const data = await response.json();
-
-      // Check for backend-reported error
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Check for the expected preferences array
-      if (data && Array.isArray(data.preferences)) {
-        console.log(`Preferences data loaded for listing ${listingId} via proxy`);
-        const fetchedPreferences = data.preferences;
-        setPreferences(fetchedPreferences);
-        // Cache the result
-        preferencesCacheRef.current[listingId] = fetchedPreferences;
-      } else {
-        console.error(`Invalid preferences data format from internal API for listing ${listingId}:`, data);
+      if (!data || !Array.isArray(data.preferences)) {
         throw new Error("Invalid preferences data format received from server");
       }
-    } catch (error) {
-      console.error(`Error fetching preferences for listing ${listingId} via proxy:`, error);
-      setPreferencesError(error instanceof Error ? error : new Error(String(error)));
-      setPreferences(null); // Ensure preferences are null on error
-    } finally {
-      setIsPreferencesLoading(false);
-    }
-  }, []); // No dependencies needed as it uses refs and state setters
+      return data.preferences as LotteryBucket[];
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
 
-  useEffect(() => {
-    if (selectedListingId) {
-      fetchPreferences(selectedListingId);
-    } else {
-      // Clear preferences if no listing is selected
-      setPreferences(null);
-      setIsPreferencesLoading(false);
-      setPreferencesError(null);
-    }
-  }, [selectedListingId, fetchPreferences]);
+  const isPreferencesLoading = prefsIsLoading || prefsIsFetching;
 
   // Helper function to compare dates for sorting
   const compareDates = (a: Listing, b: Listing) => {
@@ -501,7 +456,7 @@ export default function Home() {
           {currentSelectedListing ? (
             <ListingDetails
               listing={currentSelectedListing}
-              preferences={preferences}
+              preferences={preferences ?? null}
               isPreferencesLoading={isPreferencesLoading}
               preferencesError={preferencesError}
             />

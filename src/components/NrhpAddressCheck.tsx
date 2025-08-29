@@ -81,6 +81,9 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 
         if (hasNrhpPreference && projectID) {
           setDynamicProjectId(projectID);
+          // show polygon immediately when NRHP is present; keep marker off until address check
+          setShouldShowMap(true);
+          setMarkerEnabled(false);
         } else {
           setDynamicProjectId(null);
         }

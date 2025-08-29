@@ -110,7 +110,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			} catch {}
 		}
 
-		// place marker using server-provided lat/lng if available, else geocode
+		// place marker only when server-provided lat/lng are available
 		const placeMarker = () => {
 			// if marker is disabled, remove existing marker and do nothing
 			if (!markerEnabled) {
@@ -122,52 +122,26 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				}
 				return Promise.resolve<void>(undefined);
 			}
-			if (typeof lat === "number" && typeof lng === "number") {
-				const loc = new google.maps.LatLng(lat, lng);
-				if (!markerRef.current) {
-					markerRef.current = new google.maps.Marker({
-						title: address,
-						map,
-					});
+			// require explicit lat/lng; if absent, clear marker and do nothing
+			if (typeof lat !== "number" || typeof lng !== "number") {
+				if (markerRef.current) {
+					try {
+						markerRef.current.setMap(null);
+					} catch {}
+					markerRef.current = null;
 				}
-				markerRef.current.setPosition(loc);
-				bounds.extend(loc);
-				// removed debug geocode status
 				return Promise.resolve<void>(undefined);
 			}
-			if (!address) return Promise.resolve<void>(undefined);
-			return new Promise<void>((resolve) => {
-				const geocoder = new google.maps.Geocoder();
-				geocoder.geocode({ address, region: "US" }, (results: any, status: string) => {
-					if (status === "OK" && results && results[0]) {
-						const loc = results[0].geometry.location;
-						if (!markerRef.current) {
-							markerRef.current = new google.maps.Marker({
-								map,
-								icon: {
-									path: google.maps.SymbolPath.CIRCLE,
-									scale: 6,
-									fillColor: isMatch ? "#16a34a" : "#d97706",
-									fillOpacity: 1,
-									strokeColor: "#111827",
-									strokeWeight: 1,
-								},
-							});
-						}
-						markerRef.current.setPosition(loc);
-						bounds.extend(loc);
-						// removed debug geocode status
-					} else {
-						// if geocode fails, clear marker
-						if (markerRef.current) {
-							markerRef.current.setMap(null);
-							markerRef.current = null;
-						}
-						// removed debug geocode status
-					}
-					resolve();
+			const loc = new google.maps.LatLng(lat, lng);
+			if (!markerRef.current) {
+				markerRef.current = new google.maps.Marker({
+					title: address,
+					map,
 				});
-			});
+			}
+			markerRef.current.setPosition(loc);
+			bounds.extend(loc);
+			return Promise.resolve<void>(undefined);
 		};
 
 		placeMarker().then(() => {

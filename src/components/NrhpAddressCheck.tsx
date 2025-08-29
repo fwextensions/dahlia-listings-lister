@@ -152,13 +152,14 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
       if (data && typeof data.isMatch === "boolean" && typeof data.message === "string") {
         setGisResult({ message: data.message, isMatch: data.isMatch });
         // removed static map image update
-        if (typeof data.lat === "number" && typeof data.lng === "number") {
+        const hasCoords = typeof data.lat === "number" && typeof data.lng === "number";
+        if (hasCoords) {
           setMapLatLng({ lat: data.lat, lng: data.lng, viewport: data.viewport });
         } else {
           setMapLatLng(null);
         }
         setShouldShowMap(true);
-        setMarkerEnabled(true);
+        setMarkerEnabled(hasCoords);
       } else {
         const errorMessage = data?.message || "Invalid response format from API";
         throw new Error(errorMessage);

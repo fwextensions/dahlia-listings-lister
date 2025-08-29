@@ -7,8 +7,18 @@ interface ApiError {
 }
 
 interface GisData {
-	boundary_match: boolean;
-	// Add other fields from the external API if needed later
+	boundary_match: boolean | null;
+	address?: string;
+	location?: {
+		x: number; // Web Mercator meters (EPSG:3857)
+		y: number; // Web Mercator meters (EPSG:3857)
+	};
+	extent?: {
+		xmin: number;
+		ymin: number;
+		xmax: number;
+		ymax: number;
+	};
 }
 
 interface ExternalApiResponse {
@@ -19,7 +29,18 @@ interface ExternalApiResponse {
 interface ApiResponse {
 	isMatch: boolean;
 	message: string;
+	lat?: number;
+	lng?: number;
+	viewport?: { north: number; south: number; east: number; west: number };
 }
+
+// convert Web Mercator (EPSG:3857) meters to WGS84 lat/lng (EPSG:4326)
+const webMercatorToLatLng = (x: number, y: number): { lat: number; lng: number } => {
+	const R = 6378137;
+	const lng = (x / R) * (180 / Math.PI);
+	const lat = (2 * Math.atan(Math.exp(y / R)) - Math.PI / 2) * (180 / Math.PI);
+	return { lat, lng };
+};
 
 // Define interfaces for expected request body structure
 interface RequestAddress {
@@ -140,28 +161,41 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 
 		const data: ExternalApiResponse = await externalResponse.json();
 
-		if (data.gis_data) {
-			const boundaryMatch = data.gis_data.boundary_match;
-			if (typeof boundaryMatch === "boolean") {
-				// Handle boolean true/false
-				return NextResponse.json({
-					isMatch: boundaryMatch,
-					message: boundaryMatch
-						? "Address is within the listing boundary."
-						: "Address is NOT within the listing boundary.",
-				});
-			} else {
-				// Handle null or other non-boolean types for boundary_match
-				console.warn("External API returned non-boolean 'boundary_match':", boundaryMatch);
-				return NextResponse.json({
-					isMatch: false, // Treat null/undefined as not a match for simplicity
-					message: "Could not determine boundary match from API response (null or invalid value received).",
-				});
-			}
-		} else {
+		if (!data.gis_data) {
 			console.error("Missing 'gis_data' in external API response:", data);
 			throw new Error("Invalid response format from external API (missing gis_data)");
 		}
+
+		const g = data.gis_data;
+		const boundaryMatch = g.boundary_match;
+		let isMatch = false;
+		let message = "Could not determine boundary match from API response (null or invalid value received).";
+		if (typeof boundaryMatch === "boolean") {
+			isMatch = boundaryMatch;
+			message = boundaryMatch
+				? "Address is within the listing boundary."
+				: "Address is NOT within the listing boundary.";
+		} else {
+			console.warn("External API returned non-boolean 'boundary_match':", boundaryMatch);
+		}
+
+		let lat: number | undefined;
+		let lng: number | undefined;
+		let viewport: { north: number; south: number; east: number; west: number } | undefined;
+
+		if (g.location && typeof g.location.x === "number" && typeof g.location.y === "number") {
+			const ll = webMercatorToLatLng(g.location.x, g.location.y);
+			lat = ll.lat;
+			lng = ll.lng;
+		}
+
+		if (g.extent) {
+			const sw = webMercatorToLatLng(g.extent.xmin, g.extent.ymin);
+			const ne = webMercatorToLatLng(g.extent.xmax, g.extent.ymax);
+			viewport = { north: ne.lat, south: sw.lat, east: ne.lng, west: sw.lng };
+		}
+
+		return NextResponse.json({ isMatch, message, lat, lng, viewport });
 	} catch (error) {
 		console.error("Error in /api/check-address:", error);
 		const message = error instanceof Error ? error.message : "An unknown error occurred while checking the address.";

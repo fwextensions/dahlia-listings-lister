@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // File: src/components/NrhpMap.tsx
 "use client";
 
@@ -96,7 +97,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 					} catch {}
 				});
 				// removed debug featuresCount
-			} catch (e) {
+			} catch {
 				// swallow malformed geojson errors but keep map usable
 			}
 		}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // File: src/utils/googleMaps.ts
 let mapsLoaderPromise: Promise<any> | null = null;
 

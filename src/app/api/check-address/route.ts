@@ -179,16 +179,46 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 			console.warn("External API returned non-boolean 'boundary_match':", boundaryMatch);
 		}
 
-		const { x, y } = g.location || {};
 		let lat: number | undefined;
 		let lng: number | undefined;
 		let viewport: { north: number; south: number; east: number; west: number } | undefined;
 
-		if (typeof x === "number" && typeof y === "number") {
-			({ lat, lng } = webMercatorToLatLng(x, y));
+		// Prefer Google Geocoding for accurate map coordinates
+		const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+		const formattedAddress = `${address.address1}, ${address.city}, ${address.state} ${address.zip}`;
+		if (apiKey) {
+			try {
+				const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${encodeURIComponent(apiKey)}`;
+				const geoRes = await fetch(url, { method: "GET" });
+				if (geoRes.ok) {
+					const geoJson: any = await geoRes.json();
+					if (geoJson.status === "OK" && Array.isArray(geoJson.results) && geoJson.results.length > 0) {
+						const r = geoJson.results[0];
+						if (r.geometry?.location && typeof r.geometry.location.lat === "number" && typeof r.geometry.location.lng === "number") {
+							lat = r.geometry.location.lat;
+							lng = r.geometry.location.lng;
+						}
+						if (r.geometry?.viewport?.northeast && r.geometry?.viewport?.southwest) {
+							viewport = {
+								north: r.geometry.viewport.northeast.lat,
+								east: r.geometry.viewport.northeast.lng,
+								south: r.geometry.viewport.southwest.lat,
+								west: r.geometry.viewport.southwest.lng,
+							};
+						}
+					}
+				} else {
+					console.warn("Google Geocoding API request failed", geoRes.status, await geoRes.text());
+				}
+			} catch (geErr) {
+				console.warn("Google Geocoding API error:", geErr);
+			}
+		} else {
+			console.warn("Google Maps API key not configured for geocoding; set GOOGLE_MAPS_API_KEY or NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
 		}
 
-		if (g.extent) {
+		// Fallback viewport from GIS extent if geocode viewport missing
+		if (!viewport && g.extent) {
 			const sw = webMercatorToLatLng(g.extent.xmin, g.extent.ymin);
 			const ne = webMercatorToLatLng(g.extent.xmax, g.extent.ymax);
 			viewport = { north: ne.lat, south: sw.lat, east: ne.lng, west: sw.lng };

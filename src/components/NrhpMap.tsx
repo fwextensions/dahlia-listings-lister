@@ -25,6 +25,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 	const mapRef = useRef<any>(null);
 	const markerRef = useRef<any>(null);
 	const buildingMarkerRef = useRef<any>(null);
+	const lastProjectIdRef = useRef<string | null>(null);
+	const hasFittedPolygonRef = useRef<boolean>(false);
 	const [mapsError, setMapsError] = useState<string | null>(null);
 	const [isLoadingMaps, setIsLoadingMaps] = useState(false);
 	const [mapsReady, setMapsReady] = useState(false);
@@ -32,6 +34,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 	const { data: geojson, isLoading, error } = useNrhpGeometry(projectId);
 
 	const apiKey = useMemo(() => process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "", []);
+	const mapId = useMemo(() => process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID", []);
 
 	// load the Google Maps JavaScript API lazily
 	useEffect(() => {
@@ -52,6 +55,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 						streetViewControl: false,
 						mapTypeControl: false,
 						fullscreenControl: true,
+						mapId,
 					});
 				}
 				setMapsReady(true);
@@ -67,11 +71,17 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 		};
 	}, [apiKey]);
 
-	// render/refresh layers and marker when map, data, or address changes
+	// render/refresh layers and marker; avoid zooming on mere address input edits
 	useEffect(() => {
 		const google = (window as any).google as any;
 		const map = mapRef.current;
 		if (!google || !map || !mapsReady) return;
+
+		// reset polygon-fit guard when project changes
+		if (lastProjectIdRef.current !== projectId) {
+			lastProjectIdRef.current = projectId;
+			hasFittedPolygonRef.current = false;
+		}
 
 		// clear existing data layer features before re-adding
 		try {
@@ -82,6 +92,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 
 		// add geojson if available
 		if (geojson && geojson.type === "FeatureCollection") {
+			let extendedByPolygon = false;
 			try {
 				map.data.addGeoJson(geojson as any);
 				map.data.setStyle({
@@ -96,12 +107,24 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 					const geom = feature.getGeometry();
 					if (!geom) return;
 					try {
-						geom.forEachLatLng((latLng: any) => bounds.extend(latLng));
+						geom.forEachLatLng((latLng: any) => { bounds.extend(latLng); extendedByPolygon = true; });
 					} catch {}
 				});
 				// removed debug featuresCount
 			} catch {
 				// swallow malformed geojson errors but keep map usable
+			}
+			// fit to polygon only once per project (prevents zoom on address edits)
+			if (extendedByPolygon && !hasFittedPolygonRef.current && !viewport && (typeof lat !== "number" || typeof lng !== "number")) {
+				try {
+					if (!bounds.isEmpty()) {
+						map.fitBounds(bounds);
+						google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+							if (map.getZoom() > 18) map.setZoom(18);
+						});
+						hasFittedPolygonRef.current = true;
+					}
+				} catch {}
 			}
 		}
 
@@ -156,6 +179,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			} else {
 				// update position and ensure it's attached to the current map
 				markerRef.current.position = loc;
+				// keep marker title in sync with latest address when effect runs
+				try { markerRef.current.title = address; } catch {}
 				if (markerRef.current.map !== map) markerRef.current.map = map;
 			}
 			bounds.extend(loc);
@@ -205,18 +230,10 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 		};
 
 		placeMarker().then(() => {
-			// place building marker after address marker, then fit bounds
+			// place building marker after address marker; do not auto-fit on address results
 			placeBuildingMarker();
-			// fit bounds if we have something; else keep default
-			if (!bounds.isEmpty()) {
-				map.fitBounds(bounds);
-				google.maps.event.addListenerOnce(map, "bounds_changed", () => {
-					if (map.getZoom() > 18) map.setZoom(18);
-				});
-				// remove listener later automatically since addListenerOnce
-			}
 		});
-	}, [mapsReady, geojson, address, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng]);
+	}, [mapsReady, geojson, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng]);
 
 	return (
 		<div>

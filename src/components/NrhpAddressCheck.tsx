@@ -12,6 +12,10 @@ interface ListingLotteryPreference {
 interface ListingForNrhp {
   Project_ID?: string;
   Listing_Lottery_Preferences?: ListingLotteryPreference[];
+  Building_Street_Address?: string;
+  Building_City?: string;
+  Building_State?: string;
+  Building_Zip_Code?: string;
 }
 
 interface ListingDetailsResponseForNrhp {
@@ -42,6 +46,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
   // removed show/hide interactive map toggle
   const [shouldShowMap, setShouldShowMap] = useState(false);
   const [markerEnabled, setMarkerEnabled] = useState(false);
+  const [buildingLatLng, setBuildingLatLng] = useState<{ lat?: number; lng?: number } | null>(null);
 
   useEffect(() => {
     // Reset form and results when listingId changes
@@ -52,6 +57,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
     setDynamicProjectId(null); // Reset project ID for new listing
     // no static map to clear
     setMapLatLng(null);
+    setBuildingLatLng(null);
     // always show interactive map when results exist
     setShouldShowMap(false);
     setMarkerEnabled(false);
@@ -84,6 +90,40 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
           // show polygon immediately when NRHP is present; keep marker off until address check
           setShouldShowMap(true);
           setMarkerEnabled(false);
+
+          // attempt to fetch building coordinates using /api/check-address; ignore boundary match
+          const addr1 = data.listing?.Building_Street_Address || "";
+          const city = data.listing?.Building_City || "San Francisco";
+          const state = data.listing?.Building_State || "CA";
+          const zip = data.listing?.Building_Zip_Code || "00000";
+
+          if (addr1) {
+            try {
+              const buildingPayload = {
+                address: { address1: addr1, city, state, zip },
+                listing: { Id: listingId, Name: listingName, Project_ID: projectID },
+              };
+              const res = await fetch("/api/check-address", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(buildingPayload),
+              });
+              if (res.ok) {
+                const body = await res.json();
+                if (typeof body.lat === "number" && typeof body.lng === "number") {
+                  setBuildingLatLng({ lat: body.lat, lng: body.lng });
+                } else {
+                  setBuildingLatLng(null);
+                }
+              } else {
+                setBuildingLatLng(null);
+              }
+            } catch {
+              setBuildingLatLng(null);
+            }
+          } else {
+            setBuildingLatLng(null);
+          }
         } else {
           setDynamicProjectId(null);
         }
@@ -253,6 +293,8 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
                         lng={mapLatLng?.lng}
                         viewport={mapLatLng?.viewport}
                         markerEnabled={markerEnabled}
+                        buildingLat={buildingLatLng?.lat}
+                        buildingLng={buildingLatLng?.lng}
                     />
                 </div>
             )}

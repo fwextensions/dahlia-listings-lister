@@ -20,7 +20,14 @@ export const loadGoogleMapsApi = (apiKey: string): Promise<any> => {
 		}
 		const script = document.createElement("script");
 		script.id = "gmaps-js";
-		script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=geometry,marker`;
+		const mapId = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID as string) || "";
+		const params = new URLSearchParams({
+			key: apiKey,
+			v: "weekly",
+			libraries: "geometry,marker",
+		});
+		if (mapId) params.append("map_ids", mapId);
+		script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
 		script.async = true;
 		script.defer = true;
 		script.onload = () => {

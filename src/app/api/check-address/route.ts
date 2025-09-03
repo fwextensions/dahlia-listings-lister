@@ -179,14 +179,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 			console.warn("External API returned non-boolean 'boundary_match':", boundaryMatch);
 		}
 
+		const { x, y } = g.location || {};
 		let lat: number | undefined;
 		let lng: number | undefined;
 		let viewport: { north: number; south: number; east: number; west: number } | undefined;
 
-		if (g.location && typeof g.location.x === "number" && typeof g.location.y === "number") {
-			const ll = webMercatorToLatLng(g.location.x, g.location.y);
-			lat = ll.lat;
-			lng = ll.lng;
+		if (typeof x === "number" && typeof y === "number") {
+			({ lat, lng } = webMercatorToLatLng(x, y));
 		}
 
 		if (g.extent) {

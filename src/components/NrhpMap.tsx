@@ -187,18 +187,11 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			return Promise.resolve<void>(undefined);
 		};
 
-		// place building marker if buildingLat/buildingLng are available; otherwise fall back to polygon center
+		// place building marker only when buildingLat/buildingLng are available; no polygon-center fallback
 		const placeBuildingMarker = () => {
 			let loc: any = null;
 			if (typeof buildingLat === "number" && typeof buildingLng === "number") {
 				loc = new google.maps.LatLng(buildingLat, buildingLng);
-			} else {
-				// fallback: use bounds center if polygon contributed to bounds
-				try {
-					if (!bounds.isEmpty()) {
-						loc = bounds.getCenter();
-					}
-				} catch {}
 			}
 			if (!loc) {
 				if (buildingMarkerRef.current) {

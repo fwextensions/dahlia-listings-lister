@@ -34,6 +34,20 @@ interface ApiResponse {
 	viewport?: { north: number; south: number; east: number; west: number };
 }
 
+// minimal shape of Google Geocoding API response used in this route
+interface GoogleGeocodingResponse {
+	status: string;
+	results: Array<{
+		geometry?: {
+			location?: { lat: number; lng: number };
+			viewport?: {
+				northeast?: { lat: number; lng: number };
+				southwest?: { lat: number; lng: number };
+			};
+		};
+	}>;
+}
+
 // convert Web Mercator (EPSG:3857) meters to WGS84 lat/lng (EPSG:4326)
 const webMercatorToLatLng = (x: number, y: number): { lat: number; lng: number } => {
 	const R = 6378137;
@@ -63,22 +77,22 @@ interface RequestBody {
 
 // payload type for the external API request
 interface ExternalPayload {
-    address: RequestAddress;
-    listing: {
-        Id: string;
-        Name: string;
-    };
-    project_id: string;
-    member: {
-        firstName: string;
-        lastName: string;
-        dob: string;
-    };
-    applicant: {
-        firstName: string;
-        lastName: string;
-        dob: string;
-    };
+	address: RequestAddress;
+	listing: {
+		Id: string;
+		Name: string;
+	};
+	project_id: string;
+	member: {
+		firstName: string;
+		lastName: string;
+		dob: string;
+	};
+	applicant: {
+		firstName: string;
+		lastName: string;
+		dob: string;
+	};
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse | ApiError>> {
@@ -131,10 +145,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 		},
 	};
 
-    // If Project_ID is provided in the request's listing object, use it
-    if (listing.Project_ID) {
-        externalPayload.project_id = listing.Project_ID;
-    }
+	// If Project_ID is provided in the request's listing object, use it
+	if (listing.Project_ID) {
+		externalPayload.project_id = listing.Project_ID;
+	}
 
 	try {
 		const externalResponse = await fetch(externalApiUrl, {
@@ -191,7 +205,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 				const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${encodeURIComponent(apiKey)}`;
 				const geoRes = await fetch(url, { method: "GET" });
 				if (geoRes.ok) {
-					const geoJson: any = await geoRes.json();
+					const geoJson: GoogleGeocodingResponse = await geoRes.json();
 					if (geoJson.status === "OK" && Array.isArray(geoJson.results) && geoJson.results.length > 0) {
 						const r = geoJson.results[0];
 						if (r.geometry?.location && typeof r.geometry.location.lat === "number" && typeof r.geometry.location.lng === "number") {

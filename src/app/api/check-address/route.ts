@@ -173,8 +173,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse |
 		if (typeof boundaryMatch === "boolean") {
 			isMatch = boundaryMatch;
 			message = boundaryMatch
-				? "Address is within the listing boundary."
-				: "Address is NOT within the listing boundary.";
+				? "✅ Address is within the listing boundary."
+				: "❌ Address is NOT within the listing boundary.";
 		} else {
 			console.warn("External API returned non-boolean 'boundary_match':", boundaryMatch);
 		}

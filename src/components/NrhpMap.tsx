@@ -77,10 +77,17 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 		const map = mapRef.current;
 		if (!google || !map || !mapsReady) return;
 
-		// reset polygon-fit guard when project changes
+		// reset polygon-fit guard when project changes, and suppress building marker for this tick to avoid flicker
+		let suppressBuildingThisRun = false;
 		if (lastProjectIdRef.current !== projectId) {
 			lastProjectIdRef.current = projectId;
 			hasFittedPolygonRef.current = false;
+			suppressBuildingThisRun = true;
+			// proactively clear previous building marker so old coords don't flash
+			if (buildingMarkerRef.current) {
+				try { buildingMarkerRef.current.map = null; } catch {}
+				buildingMarkerRef.current = null;
+			}
 		}
 
 		// clear existing data layer features before re-adding
@@ -189,6 +196,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 
 		// place building marker only when buildingLat/buildingLng are available; no polygon-center fallback
 		const placeBuildingMarker = () => {
+			if (suppressBuildingThisRun) return;
 			let loc: any = null;
 			if (typeof buildingLat === "number" && typeof buildingLng === "number") {
 				loc = new google.maps.LatLng(buildingLat, buildingLng);

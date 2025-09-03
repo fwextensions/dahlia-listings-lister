@@ -8,23 +8,23 @@ interface ListingItemProps {
 	className?: string;
 }
 
-const ListingItem = forwardRef(({ 
-	listing, 
-	isSelected, 
-	onClick, 
-	className = "" 
+const ListingItem = forwardRef(({
+	listing,
+	isSelected,
+	onClick,
+	className = ""
 }: ListingItemProps, ref: ForwardedRef<HTMLDivElement>) => {
 	// Format application due date
 	const formatDueDate = () => {
 		if (!listing.Application_Due_Date) return "No due date";
-		
+
 		try {
 			// Parse the date string (assuming it's in ISO format or similar)
 			const date = new Date(listing.Application_Due_Date);
-			
+
 			// Check if the date is valid
 			if (isNaN(date.getTime())) return "Invalid date";
-			
+
 			// Format the date as YYYY-MM-DD
 			return date.toISOString().split("T")[0];
 		} catch (error) {
@@ -42,21 +42,21 @@ const ListingItem = forwardRef(({
 			ref={ref}
 		>
 			<h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{listing.Name}</h3>
-			
-			<div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
-				<div className="grid grid-cols-[60px_1fr]">
+
+			<div className="mt-2 grid grid-cols-2 gap-1 text-xs text-gray-500 dark:text-gray-400">
+				<div className="grid grid-cols-[50px_1fr]">
 					<span className="text-gray-500 dark:text-gray-400">Due:</span>
 					<span className="font-medium text-left">{formatDueDate()}</span>
 				</div>
-				<div className="grid grid-cols-[60px_1fr]">
+				<div className="grid grid-cols-[40px_1fr]">
 					<span className="text-gray-500 dark:text-gray-400">Type:</span>
 					<span className="font-medium text-left">{listing.Listing_Type}</span>
 				</div>
-				<div className="grid grid-cols-[60px_1fr]">
+				<div className="grid grid-cols-[50px_1fr]">
 					<span className="text-gray-500 dark:text-gray-400">Tenure:</span>
 					<span className="font-medium text-left">{listing.Tenure}</span>
 				</div>
-				<div className="grid grid-cols-[60px_1fr]">
+				<div className="grid grid-cols-[40px_1fr]">
 					<span className="text-gray-500 dark:text-gray-400">Units:</span>
 					<span className="font-medium text-left">{listing.Units_Available}</span>
 				</div>

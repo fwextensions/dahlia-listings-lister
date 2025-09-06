@@ -137,7 +137,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 		};
 
 		fetchListingDetails();
-	}, [listingId]);
+	}, [listingId, listingName]);
 
 	// when address input changes, keep map visible but clear the marker
 	useEffect(() => {

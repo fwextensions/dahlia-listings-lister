@@ -69,7 +69,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 		return () => {
 			cancelled = true;
 		};
-	}, [apiKey]);
+	}, [apiKey, mapId]);
 
 	// render/refresh layers and marker; avoid zooming on mere address input edits
 	useEffect(() => {
@@ -179,15 +179,12 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				markerRef.current = new google.maps.marker.AdvancedMarkerElement({
 					map,
 					position: loc,
-					title: address,
 					content: addressPin.element,
 					zIndex: 10,
 				});
 			} else {
 				// update position and ensure it's attached to the current map
 				markerRef.current.position = loc;
-				// keep marker title in sync with latest address when effect runs
-				try { markerRef.current.title = address; } catch {}
 				if (markerRef.current.map !== map) markerRef.current.map = map;
 			}
 			bounds.extend(loc);
@@ -234,7 +231,12 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			// place building marker after address marker; do not auto-fit on address results
 			placeBuildingMarker();
 		});
-	}, [mapsReady, geojson, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng]);
+	}, [mapsReady, geojson, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng, projectId]);
+
+	// keep marker title in sync with address without retriggering heavy map effect
+	useEffect(() => {
+		try { markerRef.current.title = address; } catch {}
+	}, [address]);
 
 	return (
 		<div>

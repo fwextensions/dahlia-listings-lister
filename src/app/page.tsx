@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
-import SearchBox from "@/components/SearchBox";
-import ListingItem from "@/components/ListingItem";
 import ListingDetails from "@/components/ListingDetails";
-import FilterBar, { ListingFilter } from "@/components/FilterBar";
+import FinderPane from "@/components/FinderPane";
+import type { ListingFilter } from "@/components/FilterBar";
 import { useSearchTerm } from "@/hooks/useSearchTerm";
 import { useListingFilter } from "@/hooks/useListingFilter";
 import { useFilteredListings } from "@/hooks/useFilteredListings";
@@ -19,6 +18,7 @@ export default function Home() {
 	const { searchTerm, setSearchTerm, debouncedSearchTerm } = useSearchTerm("");
 	const { currentFilter, setCurrentFilter } = useListingFilter();
 	const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
 	// listings query via React Query seeded from localStorage
 	const { data: listingsData, isLoading, isFetching, error: listingsError } = useListingsQuery();
@@ -32,6 +32,7 @@ export default function Home() {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
+    setIsMounted(true);
   }, []);
 
   // filter persistence is handled by useListingFilter hook
@@ -126,65 +127,29 @@ export default function Home() {
     setCurrentFilter(filter);
   };
 
+  const isLoadingEffective = !isMounted || isLoading;
+  const isFetchingEffective = isMounted && isFetching;
+
   return (
-    <Layout isRefreshing={isFetching}>
+    <Layout isRefreshing={isFetchingEffective}>
       <div className="flex h-full">
         {/* Finder Pane (30% width) */}
-        <div
-          className="w-full md:w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full"
+        <FinderPane
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          inputRef={searchInputRef}
           onKeyDown={onKeyDown}
-          tabIndex={0} // Make the container focusable
-        >
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <SearchBox
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              inputRef={searchInputRef}
-              onKeyDown={onKeyDown}
-            />
-            <FilterBar
-              currentFilter={currentFilter}
-              onFilterChange={handleFilterChange}
-            />
-            {!isLoading && (
-              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                {getResultsCountText()}
-              </div>
-            )}
-          </div>
-          <div
-            className="flex-1 overflow-y-auto"
-            ref={containerRef}
-          >
-            {isLoading ? (
-              <div className="p-4 text-center">
-                <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-[#0077da] dark:text-blue-400 rounded-full" role="status">
-                  <span className="sr-only">Loading...</span>
-                </div>
-                <p className="mt-2 text-gray-500 dark:text-gray-400">Loading listings...</p>
-              </div>
-            ) : listingsError && !directListings.length ? (
-              <div className="p-4 text-center text-red-500 dark:text-red-400">
-                Error loading listings: {listingsError.message}
-              </div>
-            ) : currentFilteredListings.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                No listings found matching your criteria
-              </div>
-            ) : (
-              currentFilteredListings.map((listing) => (
-                <ListingItem
-                  key={listing.Id}
-                  listing={listing}
-                  isSelected={listing.Id === selectedListingId}
-                  onClick={() => setSelectedListingId(listing.Id)}
-                  className="listing-item"
-                  ref={(el: HTMLDivElement | null) => registerItemRef(listing.Id, el)}
-                />
-              ))
-            )}
-          </div>
-        </div>
+          currentFilter={currentFilter}
+          onFilterChange={handleFilterChange}
+          listings={currentFilteredListings}
+          selectedListingId={selectedListingId}
+          onSelect={(id: string) => setSelectedListingId(id)}
+          registerItemRef={registerItemRef}
+          containerRef={containerRef}
+          isLoading={isLoadingEffective}
+          error={listingsError}
+          resultsText={getResultsCountText()}
+        />
 
         {/* Details Pane (70% width) */}
         <div className="hidden md:block md:w-2/3 p-6 overflow-y-auto">

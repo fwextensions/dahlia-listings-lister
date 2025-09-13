@@ -6,7 +6,6 @@ const STORAGE_KEY = "housing-listings-data";
 // memoize localStorage snapshot to avoid repeated reads during re-renders
 let __cachedSnapshot: ListingsResponse | null = null;
 let __didInitFromLocalStorage = false;
-let __didLogCacheUse = false;
 
 /**
  * get listings data from localStorage if available
@@ -22,9 +21,8 @@ export const getCachedListings = (): ListingsResponse | null => {
 	const cachedData = localStorage.getItem(STORAGE_KEY);
 	if (cachedData) {
 		try {
-			if (process.env.NODE_ENV !== "production" && !__didLogCacheUse) {
+			if (process.env.NODE_ENV !== "production") {
 				console.log("Using cached listings data from localStorage");
-				__didLogCacheUse = true;
 			}
 			__cachedSnapshot = JSON.parse(cachedData) as ListingsResponse;
 		} catch (error) {
@@ -68,20 +66,20 @@ export const fetchListings = async (): Promise<ListingsResponse> => {
 		}
 		const data = await response.json();
 		console.log("Fresh listings data fetched successfully");
-		
+
 		// Store in localStorage for offline access
 		cacheListings(data);
-		
+
 		return data as ListingsResponse;
 	} catch (error) {
 		console.error("Error fetching listings:", error);
-		
+
 		// Try to get data from localStorage if API request fails
 		const cachedData = getCachedListings();
 		if (cachedData) {
 			return cachedData;
 		}
-		
+
 		throw error;
 	}
 };

@@ -13,6 +13,7 @@ import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 import type { ListingSummary } from "@/types/listing-summary";
 import type { Listing } from "@/types/listings";
 import { useListingsQuery } from "@/hooks/useListingsQuery";
+import { buildResultsText } from "@/utils/resultsText";
 
 export default function Home() {
 	const { searchTerm, setSearchTerm, debouncedSearchTerm } = useSearchTerm("");
@@ -60,48 +61,21 @@ export default function Home() {
 
   // preferences are handled within DetailsPane via usePreferencesQuery
 
-  // Get text for results count
-  const getResultsCountText = () => {
-    const filteredCount = currentFilteredListings.length;
+  const isLoadingEffective = !isMounted || isLoading;
+  const isFetchingEffective = isMounted && isFetching;
 
-    if (isLoading) {
-      return "Loading listings...";
-    }
-
-    if (listingsError) {
-      return "Error loading listings";
-    }
-
-    if (filteredCount === 0) {
-      if (debouncedSearchTerm && currentFilter !== "All") {
-        return `No listings match "${debouncedSearchTerm}" with filter: ${currentFilter}`;
-      } else if (debouncedSearchTerm) {
-        return `No listings match "${debouncedSearchTerm}"`;
-      } else if (currentFilter !== "All") {
-        return `No ${currentFilter} listings found`;
-      } else {
-        return "No listings found";
-      }
-    }
-
-    if (debouncedSearchTerm && currentFilter !== "All") {
-      return `${filteredCount} ${currentFilter} listings match "${debouncedSearchTerm}"`;
-    } else if (debouncedSearchTerm) {
-      return `${filteredCount} listings match "${debouncedSearchTerm}"`;
-    } else if (currentFilter !== "All") {
-      return `${filteredCount} ${currentFilter} listings`;
-    } else {
-      return `${filteredCount} listings`;
-    }
-  };
+  const resultsText = buildResultsText(
+    currentFilteredListings.length,
+    isLoadingEffective,
+    listingsError,
+    debouncedSearchTerm,
+    currentFilter,
+  );
 
   // Handle filter change
   const handleFilterChange = (filter: ListingFilter) => {
     setCurrentFilter(filter);
   };
-
-  const isLoadingEffective = !isMounted || isLoading;
-  const isFetchingEffective = isMounted && isFetching;
 
   return (
     <Layout isRefreshing={isFetchingEffective}>
@@ -121,7 +95,7 @@ export default function Home() {
           containerRef={containerRef}
           isLoading={isLoadingEffective}
           error={listingsError}
-          resultsText={getResultsCountText()}
+          resultsText={resultsText}
         />
 
         {/* Details Pane (70% width) */}

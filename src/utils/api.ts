@@ -1,4 +1,4 @@
-import { ListingsResponse } from "@/types/listings";
+import type { ListingsResponse } from "@/types/listings";
 
 const LISTINGS_API_URL = "/api/listings";
 const STORAGE_KEY = "housing-listings-data";

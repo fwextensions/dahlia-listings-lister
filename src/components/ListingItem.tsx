@@ -1,8 +1,8 @@
-import { Listing } from "@/types/listings";
+import type { ListingSummary } from "@/types/listing-summary";
 import { forwardRef, ForwardedRef } from "react";
 
 interface ListingItemProps {
-	listing: Listing;
+	listing: ListingSummary;
 	isSelected: boolean;
 	onClick: () => void;
 	className?: string;

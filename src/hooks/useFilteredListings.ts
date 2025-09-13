@@ -1,15 +1,15 @@
 import { useMemo } from "react";
-import type { Listing } from "@/types/listings";
+import type { ListingSummary } from "@/types/listing-summary";
 import type { ListingFilter } from "@/components/FilterBar";
 import { compareDates } from "@/utils/listingSort";
 
-export const useFilteredListings = (
-	listings: Listing[],
+export const useFilteredListings = <T extends ListingSummary>(
+	listings: T[],
 	term: string,
 	filter: ListingFilter,
 ) => {
 	return useMemo(() => {
-		if (!listings || listings.length === 0) return [] as Listing[];
+		if (!listings || listings.length === 0) return [] as T[];
 
 		let typeFiltered = listings;
 		if (filter !== "All") {
@@ -24,7 +24,7 @@ export const useFilteredListings = (
 		}
 
 		if (!term) {
-			return [...typeFiltered].sort(compareDates);
+			return [...typeFiltered].sort(compareDates) as T[];
 		}
 
 		const searchTermLower = term.toLowerCase();
@@ -39,6 +39,6 @@ export const useFilteredListings = (
 					(listing.RecordType && listing.RecordType.Name && listing.RecordType.Name.toLowerCase().includes(searchTermLower))
 				);
 			})
-			.sort(compareDates);
+			.sort(compareDates) as T[];
 	}, [listings, term, filter]);
 };

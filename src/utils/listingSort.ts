@@ -1,6 +1,6 @@
-import { Listing } from "@/types/listings";
+type HasDueDate = { Application_Due_Date?: string };
 
-export const compareDates = (a: Listing, b: Listing): number => {
+export const compareDates = (a: HasDueDate, b: HasDueDate): number => {
 	// if either date is missing, put it at the end
 	if (!a.Application_Due_Date) return 1;
 	if (!b.Application_Due_Date) return -1;

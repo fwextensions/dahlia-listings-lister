@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { Listing } from "@/types/listings";
+import type { ListingSummary } from "@/types/listing-summary";
 
-export const useKeyboardNavigation = (
-	filteredListings: Listing[],
+export const useKeyboardNavigation = <T extends ListingSummary>(
+	filteredListings: T[],
 	selectedListingId: string | null,
 	setSelectedListingId: (id: string) => void,
 ) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-	const filteredRef = useRef<Listing[]>([]);
+	const filteredRef = useRef<T[]>([]);
 
 	// keep filtered list ref fresh for handlers
 	useEffect(() => {

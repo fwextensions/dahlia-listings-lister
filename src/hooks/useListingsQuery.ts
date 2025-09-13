@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { cacheListings, getCachedListings } from "@/utils/api";
-import { ListingsResponse } from "@/types/listings";
+import type { ListingsResponse } from "@/types/listings";
 
 export const useListingsQuery = () => {
 	return useQuery<ListingsResponse, Error>({

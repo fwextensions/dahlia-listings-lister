@@ -4,7 +4,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import SearchBox from "@/components/SearchBox";
 import FilterBar, { ListingFilter } from "@/components/FilterBar";
 import ListingItem from "@/components/ListingItem";
-import type { Listing } from "@/types/listings";
+import type { ListingSummary } from "@/types/listing-summary";
 
 interface FinderPaneProps {
 	// search
@@ -18,7 +18,7 @@ interface FinderPaneProps {
 	onFilterChange: (filter: ListingFilter) => void;
 
 	// list
-	listings: Listing[];
+	listings: ListingSummary[];
 	selectedListingId: string | null;
 	onSelect: (id: string) => void;
 	registerItemRef: (id: string, el: HTMLDivElement | null) => void;

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Listing } from "@/types/listings";
+import type { ListingSummary } from "@/types/listing-summary";
 
-export const useListingSelection = (
-	listings: Listing[],
-	filteredListings: Listing[],
+export const useListingSelection = <T extends ListingSummary>(
+	listings: T[],
+	filteredListings: T[],
 ) => {
 	const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
 

@@ -10,7 +10,8 @@ import { useListingFilter } from "@/hooks/useListingFilter";
 import { useFilteredListings } from "@/hooks/useFilteredListings";
 import { useListingSelection } from "@/hooks/useListingSelection";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
-import { Listing } from "@/types/listings";
+import type { ListingSummary } from "@/types/listing-summary";
+import type { Listing } from "@/types/listings";
 import { useListingsQuery } from "@/hooks/useListingsQuery";
 
 export default function Home() {
@@ -21,7 +22,8 @@ export default function Home() {
 
 	// listings query via React Query seeded from localStorage
 	const { data: listingsData, isLoading, isFetching, error: listingsError } = useListingsQuery();
-	const directListings = useMemo(() => (listingsData?.listings ?? []) as Listing[], [listingsData]);
+	const directListingsFull = useMemo(() => (listingsData?.listings ?? []) as Listing[], [listingsData]);
+	const directListings = useMemo(() => directListingsFull as unknown as ListingSummary[], [directListingsFull]);
 
   // State for preferences
   // handled via react-query below
@@ -39,11 +41,15 @@ export default function Home() {
   // derive filtered + sorted listings
   const currentFilteredListings = useFilteredListings(directListings, debouncedSearchTerm, currentFilter);
 
-  // selection managed by hook
-  const { selectedListingId, setSelectedListingId, currentSelectedListing } = useListingSelection(
+  // selection managed by hook (summary)
+  const { selectedListingId, setSelectedListingId } = useListingSelection(
     directListings,
     currentFilteredListings,
   );
+  const currentSelectedListing = useMemo(() => {
+    if (!selectedListingId) return null;
+    return directListingsFull.find((l) => l.Id === selectedListingId) ?? null;
+  }, [directListingsFull, selectedListingId]);
 
   // keyboard nav hook
   const { onKeyDown, registerItemRef, containerRef } = useKeyboardNavigation(

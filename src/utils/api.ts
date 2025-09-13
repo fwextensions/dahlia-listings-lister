@@ -3,23 +3,38 @@ import type { ListingsResponse } from "@/types/listings";
 const LISTINGS_API_URL = "/api/listings";
 const STORAGE_KEY = "housing-listings-data";
 
+// memoize localStorage snapshot to avoid repeated reads during re-renders
+let __cachedSnapshot: ListingsResponse | null = null;
+let __didInitFromLocalStorage = false;
+let __didLogCacheUse = false;
+
 /**
  * get listings data from localStorage if available
  */
 export const getCachedListings = (): ListingsResponse | null => {
 	if (typeof window === "undefined") return null;
-	
+
+	// return memoized result if we've already attempted initialization
+	if (__didInitFromLocalStorage) {
+		return __cachedSnapshot;
+	}
+
 	const cachedData = localStorage.getItem(STORAGE_KEY);
 	if (cachedData) {
 		try {
-			console.log("Using cached listings data from localStorage");
-			return JSON.parse(cachedData) as ListingsResponse;
+			if (process.env.NODE_ENV !== "production" && !__didLogCacheUse) {
+				console.log("Using cached listings data from localStorage");
+				__didLogCacheUse = true;
+			}
+			__cachedSnapshot = JSON.parse(cachedData) as ListingsResponse;
 		} catch (error) {
 			console.error("Error parsing cached listings data:", error);
-			return null;
+			__cachedSnapshot = null;
 		}
 	}
-	return null;
+
+	__didInitFromLocalStorage = true;
+	return __cachedSnapshot;
 };
 
 /**
@@ -27,10 +42,13 @@ export const getCachedListings = (): ListingsResponse | null => {
  */
 export const cacheListings = (data: ListingsResponse): void => {
 	if (typeof window === "undefined") return;
-	
+
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 		console.log("Listings data cached to localStorage");
+		// update memoized snapshot for subsequent reads
+		__cachedSnapshot = data;
+		__didInitFromLocalStorage = true;
 	} catch (error) {
 		console.error("Error caching listings data:", error);
 	}

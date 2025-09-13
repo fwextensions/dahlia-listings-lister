@@ -5,7 +5,7 @@ import type { ListingsResponse } from "@/types/listings";
 export const useListingsQuery = () => {
 	return useQuery<ListingsResponse, Error>({
 		queryKey: ["listings"],
-		initialData: getCachedListings() ?? undefined,
+		initialData: () => getCachedListings() ?? undefined,
 		queryFn: async ({ signal }) => {
 			const response = await fetch("/api/listings", { signal });
 			if (!response.ok) {

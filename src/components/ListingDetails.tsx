@@ -11,13 +11,19 @@ interface ListingDetailsProps {
 	preferences: LotteryBucket[] | null;
 	isPreferencesLoading: boolean;
 	preferencesError: Error | null;
+	projectId: string | null;
+	isDetailsLoading: boolean;
+	detailsError: Error | null;
 }
 
 export default function ListingDetails({
 	listing,
 	preferences,
 	isPreferencesLoading,
-	preferencesError }: ListingDetailsProps)
+	preferencesError,
+	projectId,
+	isDetailsLoading,
+	detailsError }: ListingDetailsProps)
 {
 	if (!listing) {
 		return (
@@ -56,6 +62,9 @@ export default function ListingDetails({
 				isPreferencesLoading={isPreferencesLoading}
 				preferencesError={preferencesError}
 				formatDate={formatDate}
+				projectId={projectId}
+				isDetailsLoading={isDetailsLoading}
+				detailsError={detailsError}
 			/>
 
 			{unitSummaryElements && unitSummaryElements.length > 0 && (

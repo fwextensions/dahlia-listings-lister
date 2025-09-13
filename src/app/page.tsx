@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
-import ListingDetails from "@/components/ListingDetails";
 import FinderPane from "@/components/FinderPane";
+import DetailsPane from "@/components/DetailsPane";
 import type { ListingFilter } from "@/components/FilterBar";
 import { useSearchTerm } from "@/hooks/useSearchTerm";
 import { useListingFilter } from "@/hooks/useListingFilter";
 import { useFilteredListings } from "@/hooks/useFilteredListings";
 import { useListingSelection } from "@/hooks/useListingSelection";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
-import { Listing, LotteryBucket } from "@/types/listings";
+import { Listing } from "@/types/listings";
 import { useListingsQuery } from "@/hooks/useListingsQuery";
 
 export default function Home() {
@@ -53,39 +52,7 @@ export default function Home() {
     (id: string) => setSelectedListingId(id),
   );
 
-  // Preferences query keyed by selected listing; auto-updates on change
-  const {
-    data: preferences,
-    isLoading: prefsIsLoading,
-    isFetching: prefsIsFetching,
-    error: preferencesError,
-  } = useQuery<LotteryBucket[], Error>({
-    queryKey: ["preferences", selectedListingId],
-    enabled: !!selectedListingId,
-    queryFn: async ({ signal }) => {
-      const id = selectedListingId as string;
-      const response = await fetch(`/api/preferences/${id}`, { signal });
-      if (!response.ok) {
-        let errorData: { error?: string } = {};
-        try {
-          errorData = await response.json();
-        } catch {
-          // ignore parse errors
-        }
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (!data || !Array.isArray(data.preferences)) {
-        throw new Error("Invalid preferences data format received from server");
-      }
-      return data.preferences as LotteryBucket[];
-    },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: true,
-  });
-
-  const isPreferencesLoading = prefsIsLoading || prefsIsFetching;
+  // preferences are handled within DetailsPane via usePreferencesQuery
 
   // Get text for results count
   const getResultsCountText = () => {
@@ -153,18 +120,7 @@ export default function Home() {
 
         {/* Details Pane (70% width) */}
         <div className="hidden md:block md:w-2/3 p-6 overflow-y-auto">
-          {currentSelectedListing ? (
-            <ListingDetails
-              listing={currentSelectedListing}
-              preferences={preferences ?? null}
-              isPreferencesLoading={isPreferencesLoading}
-              preferencesError={preferencesError}
-            />
-          ) : (
-            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              <p>No listing selected.</p>
-            </div>
-          )}
+          <DetailsPane listing={currentSelectedListing} />
         </div>
       </div>
     </Layout>

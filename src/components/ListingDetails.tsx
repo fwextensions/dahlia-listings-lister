@@ -74,6 +74,9 @@ export default function ListingDetails({
                 <NrhpAddressCheck
                     listingId={listing.Id}
                     listingName={listing.Name}
+                    listingDetails={listingDetails}
+                    isDetailsLoading={isDetailsLoading}
+                    detailsError={detailsError}
                 />
             )}
         </div>

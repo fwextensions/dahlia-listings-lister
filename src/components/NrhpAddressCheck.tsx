@@ -1,33 +1,16 @@
 import { useState, useCallback, useEffect, FormEvent, ChangeEvent } from "react";
 import NrhpMap from "./NrhpMap";
-
-// Minimal types needed from the listing details response
-interface ListingLotteryPreference {
-	Lottery_Preference: {
-		Name?: string;
-		Preference_Short_Code?: string;
-	};
-}
-
-interface ListingForNrhp {
-	Project_ID?: string;
-	Listing_Lottery_Preferences?: ListingLotteryPreference[];
-	Building_Street_Address?: string;
-	Building_City?: string;
-	Building_State?: string;
-	Building_Zip_Code?: string;
-}
-
-interface ListingDetailsResponseForNrhp {
-	listing: ListingForNrhp;
-}
+import type { ListingDetailsClient } from "@/hooks/useListingDetailsQuery";
 
 interface NrhpAddressCheckProps {
 	listingId: string;
 	listingName: string;
+	listingDetails: ListingDetailsClient | null;
+	isDetailsLoading: boolean;
+	detailsError: Error | null;
 }
 
-export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddressCheckProps) {
+export default function NrhpAddressCheck({ listingId, listingName, listingDetails, isDetailsLoading }: NrhpAddressCheckProps) {
 	const [addressForm, setAddressForm] = useState({
 		address1: "",
 		city: "San Francisco",
@@ -36,7 +19,6 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 	const [isCheckingAddress, setIsCheckingAddress] = useState(false);
 	const [addressCheckError, setAddressCheckError] = useState<Error | null>(null);
 	const [dynamicProjectId, setDynamicProjectId] = useState<string | null>(null);
-	const [isLoadingListingDetails, setIsLoadingListingDetails] = useState(false);
 	// removed static map image state
 	const [mapLatLng, setMapLatLng] = useState<{
 		lat?: number;
@@ -63,81 +45,72 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 		setMarkerEnabled(false);
 
 		if (!listingId) {
-			setIsLoadingListingDetails(false);
 			return;
 		}
 
-		const fetchListingDetails = async () => {
-			setIsLoadingListingDetails(true);
-			try {
-				const response = await fetch(`/api/listings/${listingId}`);
-				if (!response.ok) {
-					console.error(`Failed to fetch listing details for ${listingId}: ${response.status}`);
-					setDynamicProjectId(null);
-					return;
-				}
-				const data: ListingDetailsResponseForNrhp = await response.json();
+		// wait for details to finish loading; spinner handled via isDetailsLoading prop
+		if (isDetailsLoading) {
+			return;
+		}
 
-				const projectID = data.listing?.Project_ID;
-				const hasNrhpPreference = data.listing?.Listing_Lottery_Preferences?.some(
-					pref =>
-						pref.Lottery_Preference.Preference_Short_Code?.toUpperCase() === "NRHP" ||
-						pref.Lottery_Preference.Name?.toUpperCase().includes("NRHP")
-				);
+		// derive NRHP presence and project id from provided listingDetails
+		const hasNrhpPreference = !!listingDetails?.Listing_Lottery_Preferences?.some((pref) => {
+			const code = pref.Lottery_Preference?.Preference_Short_Code?.toUpperCase();
+			const name = pref.Lottery_Preference?.Name?.toUpperCase();
+			return code === "NRHP" || (name ? name.includes("NRHP") : false);
+		});
+		const projectID = listingDetails?.Project_ID ?? null;
 
-				if (hasNrhpPreference && projectID) {
-					setDynamicProjectId(projectID);
-					// show polygon immediately when NRHP is present; keep marker off until address check
-					setShouldShowMap(true);
-					setMarkerEnabled(false);
+		if (hasNrhpPreference && projectID) {
+			setDynamicProjectId(projectID);
+			// show polygon immediately when NRHP is present; keep marker off until address check
+			setShouldShowMap(true);
+			setMarkerEnabled(false);
 
-					// attempt to fetch building coordinates using /api/check-address; ignore boundary match
-					const addr1 = data.listing?.Building_Street_Address || "";
-					const city = data.listing?.Building_City || "San Francisco";
-					const state = data.listing?.Building_State || "CA";
-					const zip = data.listing?.Building_Zip_Code || "00000";
+			// attempt to fetch building coordinates using /api/check-address; ignore boundary match
+			const addr1 = listingDetails?.Building_Street_Address || "";
+			const city = listingDetails?.Building_City || "San Francisco";
+			const state = listingDetails?.Building_State || "CA";
+			const zip = listingDetails?.Building_Zip_Code || "00000";
 
-					if (addr1) {
-						try {
-							const buildingPayload = {
-								address: { address1: addr1, city, state, zip },
-								listing: { Id: listingId, Name: listingName, Project_ID: projectID },
-							};
-							const res = await fetch("/api/check-address", {
-								method: "POST",
-								headers: { "Content-Type": "application/json" },
-								body: JSON.stringify(buildingPayload),
-							});
-							if (res.ok) {
-								const body = await res.json();
-								if (typeof body.lat === "number" && typeof body.lng === "number") {
-									setBuildingLatLng({ lat: body.lat, lng: body.lng });
-								} else {
-									setBuildingLatLng(null);
-								}
+			let cancelled = false;
+			if (addr1) {
+				(async () => {
+					try {
+						const buildingPayload = {
+							address: { address1: addr1, city, state, zip },
+							listing: { Id: listingId, Name: listingName, Project_ID: projectID },
+						};
+						const res = await fetch("/api/check-address", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify(buildingPayload),
+						});
+						if (!cancelled && res.ok) {
+							const body = await res.json();
+							if (typeof body.lat === "number" && typeof body.lng === "number") {
+								setBuildingLatLng({ lat: body.lat, lng: body.lng });
 							} else {
 								setBuildingLatLng(null);
 							}
-						} catch {
+						} else if (!cancelled) {
 							setBuildingLatLng(null);
 						}
-					} else {
-						setBuildingLatLng(null);
+					} catch {
+						if (!cancelled) setBuildingLatLng(null);
 					}
-				} else {
-					setDynamicProjectId(null);
-				}
-			} catch (error) {
-				console.error("Error fetching or processing listing details:", error);
-				setAddressCheckError(error instanceof Error ? error : new Error("Failed to load listing preference details."));
-				setDynamicProjectId(null);
-			} finally {
-				setIsLoadingListingDetails(false);
+				})();
+			} else {
+				setBuildingLatLng(null);
 			}
-		};
 
-		fetchListingDetails();
-	}, [listingId, listingName]);
+			return () => {
+				cancelled = true;
+			};
+		} else {
+			setDynamicProjectId(null);
+		}
+	}, [listingId, listingName, listingDetails, isDetailsLoading]);
 
 	// when address input changes, keep map visible but clear the marker
 	useEffect(() => {
@@ -220,13 +193,6 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 				Check if an address falls within the Neighborhood Resident Housing
 				Preference (NRHP) boundary for this listing.
 			</p>
-			{isLoadingListingDetails && (
-				<div className="flex items-center justify-center p-4 my-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md">
-					<span className="animate-spin inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full mr-3" role="status"></span>
-					<p className="text-sm text-blue-700 dark:text-blue-300">Loading
-						listing preference details...</p>
-				</div>
-			)}
 			<form onSubmit={handleAddressCheck} className="space-y-3">
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
@@ -259,7 +225,7 @@ export default function NrhpAddressCheck({ listingId, listingName }: NrhpAddress
 				<div className="flex gap-4">
 					<button
 						type="submit"
-						disabled={isCheckingAddress || isLoadingListingDetails}
+						disabled={isCheckingAddress || isDetailsLoading}
 						className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#0077da] hover:bg-[#0066c0] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0077da] dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						{isCheckingAddress ? (

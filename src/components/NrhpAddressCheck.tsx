@@ -270,5 +270,5 @@ export default function NrhpAddressCheck({ listingId, listingName, listingDetail
 				</div>
 			)}
 		</div>
-		);
+	);
 }

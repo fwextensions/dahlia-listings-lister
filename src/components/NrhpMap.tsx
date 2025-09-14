@@ -28,7 +28,6 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 	const lastProjectIdRef = useRef<string | null>(null);
 	const hasFittedPolygonRef = useRef<boolean>(false);
 	const [mapsError, setMapsError] = useState<string | null>(null);
-	const [isLoadingMaps, setIsLoadingMaps] = useState(false);
 	const [mapsReady, setMapsReady] = useState(false);
 
 	const { data: geojson, isLoading, error } = useNrhpGeometry(projectId);
@@ -43,8 +42,9 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			setMapsError("Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
 			return;
 		}
+
 		let cancelled = false;
-		setIsLoadingMaps(true);
+
 		loadGoogleMapsApi(apiKey)
 			.then((google) => {
 				if (cancelled) return;
@@ -62,9 +62,6 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			})
 			.catch((err) => {
 				if (!cancelled) setMapsError(err?.message || "Failed to load Google Maps");
-			})
-			.finally(() => {
-				if (!cancelled) setIsLoadingMaps(false);
 			});
 		return () => {
 			cancelled = true;
@@ -240,23 +237,18 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 
 	return (
 		<div>
-			{(isLoadingMaps || isLoading) && (
-				<div className="flex items-center justify-center p-3 text-sm text-gray-600 dark:text-gray-300">
-					<span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" role="status"></span>
-					Loading map...
-				</div>
-			)}
 			{(mapsError || error) && (
 				<div className="mt-2 p-2 text-sm rounded border border-red-300 text-red-700 dark:text-red-300 dark:border-red-700">
 					{mapsError || (error as any)?.message || "Failed to load map"}
 				</div>
 			)}
-			{/* removed debug labels for features and geocode status */}
+
 			{!isLoading && geojson && Array.isArray(geojson.features) && geojson.features.length === 0 && (
 				<div className="mt-2 p-2 text-xs rounded border border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-700">
 					No NRHP boundary geometry found for this Project_ID.
 				</div>
 			)}
+
 			<div ref={containerRef} style={{ width: "100%", height: MAP_HEIGHT_PX }} className="mt-2 rounded-md overflow-hidden border border-gray-300 dark:border-gray-700" />
 		</div>
 	);

@@ -37,8 +37,6 @@ export default function Home() {
     setIsMounted(true);
   }, []);
 
-  // filter persistence is handled by useListingFilter hook
-
   // derive filtered + sorted listings
   const currentFilteredListings = useFilteredListings(directListings, debouncedSearchTerm, currentFilter);
 
@@ -58,8 +56,6 @@ export default function Home() {
     selectedListingId,
     (id: string) => setSelectedListingId(id),
   );
-
-  // preferences are handled within DetailsPane via usePreferencesQuery
 
   const isLoadingEffective = !isMounted || isLoading;
   const isFetchingEffective = isMounted && isFetching;

@@ -4,6 +4,23 @@ import AsyncFieldValue from "@/components/AsyncFieldValue";
 import CopyButton from "@/components/CopyButton";
 import type { ListingDetailsClient } from "@/hooks/useListingDetailsQuery";
 
+function sortPreferences(listingDetails: ListingDetailsClient | null)
+{
+	const list = listingDetails?.Listing_Lottery_Preferences;
+
+	if (!list || list.length === 0) {
+		return "";
+	}
+
+	const sorted = list.toSorted((a, b) =>
+		(a.Order ?? Number.MAX_SAFE_INTEGER) - (b.Order ?? Number.MAX_SAFE_INTEGER));
+	const codes = sorted
+		.map(p => p.Lottery_Preference?.Preference_Short_Code)
+		.filter((c): c is string => !!c);
+
+	return [...new Set(codes)].join(", ");
+}
+
 interface DetailField {
 	label: string;
 	value: string | JSX.Element | undefined | null; // Allow string or JSX
@@ -37,20 +54,7 @@ export default function ListingDetailFields({
 	}, []);
 
 	const projectId = listingDetails?.Project_ID ?? null;
-	const preferencesText = ((): string | null => {
-		const list = listingDetails?.Listing_Lottery_Preferences;
-		if (!list || list.length === 0) return null;
-		const sorted = list.toSorted((a, b) => {
-			const ao = a.Order ?? Number.MAX_SAFE_INTEGER;
-			const bo = b.Order ?? Number.MAX_SAFE_INTEGER;
-			return ao - bo;
-		});
-		const codes = sorted
-			.map(p => p.Lottery_Preference?.Preference_Short_Code)
-			.filter((c): c is string => !!c);
-		if (codes.length === 0) return null;
-		return [...new Set(codes)].join(", ");
-	})();
+	const preferencesText = sortPreferences(listingDetails);
 
 	const detailFields: DetailField[] = [
 		{ label: "ID", value: listing.Id },

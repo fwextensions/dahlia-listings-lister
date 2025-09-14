@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:prodDist": "set NEXT_DIST_DIR=.next-prod && next build && set NEXT_DIST_DIR=",
+    "build:prodDist:nix": "NEXT_DIST_DIR=.next-prod next build"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.69.0",

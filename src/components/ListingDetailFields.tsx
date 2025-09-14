@@ -21,10 +21,40 @@ function sortPreferences(listingDetails: ListingDetailsClient | null)
 	return [...new Set(codes)].join(", ");
 }
 
+function createAsyncValue<T extends object>(
+	data: T | null,
+	isLoading: boolean,
+	error: Error | null)
+{
+	return function asyncValue<K extends keyof T & string>(
+		label: string,
+		key: K,
+		createValue?: (data: T | null) => string,
+	): DetailField {
+		const value = createValue
+			? createValue(data)
+			: data?.[key];
+		const typedValue = typeof value === "string" ? value : undefined;
+
+		return {
+			label,
+			value: (
+				<AsyncFieldValue
+					value={typedValue}
+					isLoading={isLoading}
+					error={error}
+					errorText={`Error loading "${label}".`}
+				/>
+			),
+			copyText: typedValue
+		};
+	};
+}
+
 interface DetailField {
 	label: string;
 	value: string | JSX.Element | undefined | null; // Allow string or JSX
-	copyText?: string | null; // text to copy even if value is rendered via JSX
+	copyText?: string | undefined | null; // text to copy even if value is rendered via JSX
 }
 
 interface ListingDetailFieldsProps {
@@ -53,8 +83,7 @@ export default function ListingDetailFields({
 		});
 	}, []);
 
-	const projectId = listingDetails?.Project_ID ?? null;
-	const preferencesText = sortPreferences(listingDetails);
+	const asyncValue = createAsyncValue(listingDetails, isDetailsLoading, detailsError);
 
 	const detailFields: DetailField[] = [
 		{ label: "ID", value: listing.Id },
@@ -77,43 +106,9 @@ export default function ListingDetailFields({
 		},
 		{ label: "Lottery Status", value: listing.Lottery_Status },
 		{ label: "Has Waitlist", value: listing.hasWaitlist ? "Yes" : "No" },
-		{
-			label: "Preferences",
-			value: (
-				<AsyncFieldValue
-					value={preferencesText}
-					isLoading={isDetailsLoading}
-					error={detailsError}
-					emptyText="None specified."
-					errorText="Error loading preferences."
-				/>
-			),
-			copyText: preferencesText,
-		},
-		{
-			label: "Project ID",
-			value: (
-				<AsyncFieldValue
-					value={projectId}
-					isLoading={isDetailsLoading}
-					error={detailsError}
-					errorText="Error loading project ID."
-				/>
-			),
-			copyText: projectId ?? null,
-		},
-		{
-			label: "Program Type",
-			value: (
-				<AsyncFieldValue
-					value={listingDetails?.Program_Type}
-					isLoading={isDetailsLoading}
-					error={detailsError}
-					errorText="Error loading program type."
-				/>
-			),
-			copyText: listingDetails?.Program_Type ?? null,
-		},
+		asyncValue("Preferences", "Listing_Lottery_Preferences", sortPreferences),
+		asyncValue("Project ID", "Project_ID"),
+		asyncValue("Program Type", "Program_Type"),
 		{ label: "Record Type", value: listing.RecordType.Name },
 		{ label: "Tenure", value: listing.Tenure },
 		{ label: "Last Modified", value: formatDate(listing.LastModifiedDate) },

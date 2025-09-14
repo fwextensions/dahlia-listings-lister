@@ -1,34 +1,29 @@
-import { Listing, LotteryBucket } from "@/types/listings";
+import { Listing } from "@/types/listings";
 import { JSX, useCallback, useState } from "react";
 import AsyncFieldValue from "@/components/AsyncFieldValue";
 import CopyButton from "@/components/CopyButton";
+import type { ListingDetailsClient } from "@/hooks/useListingDetailsQuery";
 
 interface DetailField {
 	label: string;
-	value: string | JSX.Element; // Allow string or JSX
+	value: string | JSX.Element | undefined | null; // Allow string or JSX
 	copyText?: string | null; // text to copy even if value is rendered via JSX
 }
 
 interface ListingDetailFieldsProps {
 	listing: Listing;
-	preferences: LotteryBucket[] | null;
-	isPreferencesLoading: boolean;
-	preferencesError: Error | null;
-	formatDate: (dateString: string) => string;
-	projectId: string | null;
+	listingDetails: ListingDetailsClient | null;
 	isDetailsLoading: boolean;
 	detailsError: Error | null;
+	formatDate: (dateString: string) => string;
 }
 
 export default function ListingDetailFields({
 	listing,
-	preferences,
-	isPreferencesLoading,
-	preferencesError,
-	formatDate,
-	projectId,
+	listingDetails,
 	isDetailsLoading,
 	detailsError,
+	formatDate,
 }: ListingDetailFieldsProps) {
 	const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -40,9 +35,22 @@ export default function ListingDetailFields({
 			console.error("Failed to copy text: ", err);
 		});
 	}, []);
-	const preferencesText = preferences?.length
-		? [...new Set(preferences.map(p => p.preferenceShortCode))].join(", ")
-		: null;
+
+	const projectId = listingDetails?.Project_ID ?? null;
+	const preferencesText = ((): string | null => {
+		const list = listingDetails?.Listing_Lottery_Preferences;
+		if (!list || list.length === 0) return null;
+		const sorted = list.toSorted((a, b) => {
+			const ao = a.Order ?? Number.MAX_SAFE_INTEGER;
+			const bo = b.Order ?? Number.MAX_SAFE_INTEGER;
+			return ao - bo;
+		});
+		const codes = sorted
+			.map(p => p.Lottery_Preference?.Preference_Short_Code)
+			.filter((c): c is string => !!c);
+		if (codes.length === 0) return null;
+		return [...new Set(codes)].join(", ");
+	})();
 
 	const detailFields: DetailField[] = [
 		{ label: "ID", value: listing.Id },
@@ -70,8 +78,8 @@ export default function ListingDetailFields({
 			value: (
 				<AsyncFieldValue
 					value={preferencesText}
-					isLoading={isPreferencesLoading}
-					error={preferencesError}
+					isLoading={isDetailsLoading}
+					error={detailsError}
 					emptyText="None specified."
 					errorText="Error loading preferences."
 				/>
@@ -89,6 +97,18 @@ export default function ListingDetailFields({
 				/>
 			),
 			copyText: projectId ?? null,
+		},
+		{
+			label: "Program Type",
+			value: (
+				<AsyncFieldValue
+					value={listingDetails?.Program_Type}
+					isLoading={isDetailsLoading}
+					error={detailsError}
+					errorText="Error loading program type."
+				/>
+			),
+			copyText: listingDetails?.Program_Type ?? null,
 		},
 		{ label: "Record Type", value: listing.RecordType.Name },
 		{ label: "Tenure", value: listing.Tenure },

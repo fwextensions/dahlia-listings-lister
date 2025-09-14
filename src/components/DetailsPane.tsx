@@ -2,7 +2,6 @@
 
 import ListingDetails from "@/components/ListingDetails";
 import type { Listing } from "@/types/listings";
-import { usePreferencesQuery } from "@/hooks/usePreferencesQuery";
 import { useListingDetailsQuery } from "@/hooks/useListingDetailsQuery";
 
 interface DetailsPaneProps {
@@ -10,18 +9,14 @@ interface DetailsPaneProps {
 }
 
 export default function DetailsPane({ listing }: DetailsPaneProps) {
-	const { preferences, isLoading, error } = usePreferencesQuery(listing?.Id ?? null);
-	const { projectId, isLoading: isDetailsLoading, error: detailsError } = useListingDetailsQuery(listing?.listingID ?? null);
+	const { details: listingDetails, isLoading: isDetailsLoading, error: detailsError } = useListingDetailsQuery(listing?.listingID ?? null);
 
 	return (
 		<div>
 			{listing ? (
 				<ListingDetails
 					listing={listing}
-					preferences={preferences}
-					isPreferencesLoading={isLoading}
-					preferencesError={error}
-					projectId={projectId}
+					listingDetails={listingDetails}
 					isDetailsLoading={isDetailsLoading}
 					detailsError={detailsError}
 				/>

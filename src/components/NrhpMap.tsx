@@ -36,7 +36,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 	const { data: geojson, isLoading, error } = useNrhpGeometry(projectId);
 
 	const apiKey = useMemo(() => process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "", []);
-	const mapId = useMemo(() => process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID", []);
+	const mapId = useMemo(() => process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID, []);
 
 	// load the Google Maps JavaScript API lazily
 	useEffect(() => {
@@ -56,14 +56,15 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				setMarkerLib(markerModule);
 				const { Map } = mapsModule as any;
 				if (!mapRef.current && containerRef.current) {
-					mapRef.current = new Map(containerRef.current, {
+					const baseOptions = {
 						center: { lat: 37.7749, lng: -122.4194 },
 						zoom: 12,
 						streetViewControl: false,
 						mapTypeControl: false,
 						fullscreenControl: true,
-						mapId,
-					});
+					};
+					const options = mapId ? { ...baseOptions, mapId } : baseOptions;
+					mapRef.current = new Map(containerRef.current, options);
 				}
 				setMapsReady(true);
 			})

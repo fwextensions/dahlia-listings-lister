@@ -1,6 +1,8 @@
-import { useCallback } from "react";
+"use client";
+import { useCallback, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ListingImage } from "@/types/listings";
+import ImageLightbox from "./ImageLightbox";
 
 interface ImageCarouselProps {
 	images: ListingImage[];
@@ -8,6 +10,9 @@ interface ImageCarouselProps {
 
 export default function ImageCarousel({ images }: ImageCarouselProps) {
 	const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+
+	const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+	const [selectedIndex, setSelectedIndex] = useState(0);
 
 	const scrollPrev = useCallback(() => {
 		if (emblaApi) emblaApi.scrollPrev();
@@ -29,16 +34,23 @@ export default function ImageCarousel({ images }: ImageCarouselProps) {
 		<div className="relative overflow-hidden">
 			<div className="overflow-hidden" ref={emblaRef}>
 				<div className="flex">
-					{images.map((image) => (
+					{images.map((image, idx) => (
 						<div key={image.Id} className="relative min-w-full flex-shrink-0">
-							<div className="h-64 w-full relative">
+							<button
+								className="h-64 w-full relative block cursor-pointer"
+								onClick={() => {
+									setSelectedIndex(idx);
+									setIsLightboxOpen(true);
+								}}
+								aria-label="open image gallery"
+							>
 								{/* eslint-disable-next-line @next/next/no-img-element */}
 								<img
 									src={image.displayImageURL || image.Image_URL}
 									alt={image.Image_Description || image.Name}
 									className="absolute inset-0 w-full h-full object-cover"
 								/>
-							</div>
+							</button>
 							{image.Image_Description && (
 								<div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2">
 									<p>{image.Image_Description}</p>
@@ -70,6 +82,14 @@ export default function ImageCarousel({ images }: ImageCarouselProps) {
 						</svg>
 					</button>
 				</>
+			)}
+
+			{isLightboxOpen && (
+				<ImageLightbox
+					images={images}
+					initialIndex={selectedIndex}
+					onClose={() => setIsLightboxOpen(false)}
+				/>
 			)}
 		</div>
 	);

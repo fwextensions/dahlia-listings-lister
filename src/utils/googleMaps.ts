@@ -1,45 +1,31 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // File: src/utils/googleMaps.ts
-let mapsLoaderPromise: Promise<any> | null = null;
+import { Loader } from "@googlemaps/js-api-loader";
 
-export const loadGoogleMapsApi = (apiKey: string): Promise<any> => {
+let loader: Loader | null = null;
+const moduleCache: Record<string, Promise<any>> = {};
+
+export type GoogleMapsLibrary = "core" | "maps" | "marker" | "geometry" | "places" | "geocoding";
+
+export const loadGoogleMapsApi = (apiKey: string, libs: GoogleMapsLibrary[]): Promise<any[]> => {
 	if (typeof window === "undefined") {
 		return Promise.reject(new Error("google maps can only load in the browser"));
 	}
-	if ((window as any).google && (window as any).google.maps) {
-		return Promise.resolve((window as any).google);
-	}
-	if (mapsLoaderPromise) return mapsLoaderPromise;
 
-	mapsLoaderPromise = new Promise((resolve, reject) => {
-		const existing = document.getElementById("gmaps-js");
-		if (existing) {
-			existing.addEventListener("load", () => resolve((window as any).google));
-			existing.addEventListener("error", () => reject(new Error("failed to load google maps script")));
-			return;
-		}
-		const script = document.createElement("script");
-		script.id = "gmaps-js";
-		const mapId = (process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID as string) || "";
-		const params = new URLSearchParams({
-			key: apiKey,
-			v: "weekly",
-			libraries: "geometry,marker",
+	if (!loader) {
+		loader = new Loader({
+			apiKey,
+			version: "weekly",
 		});
-		if (mapId) params.append("map_ids", mapId);
-		script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-		script.async = true;
-		script.defer = true;
-		script.onload = () => {
-			if ((window as any).google && (window as any).google.maps) {
-				resolve((window as any).google);
-			} else {
-				reject(new Error("google maps loaded but window.google.maps is unavailable"));
-			}
-		};
-		script.onerror = () => reject(new Error("failed to load google maps script"));
-		document.head.appendChild(script);
-	});
+	}
 
-	return mapsLoaderPromise;
+	const ensureLib = (name: GoogleMapsLibrary) => {
+		if (!moduleCache[name]) {
+			moduleCache[name] = loader!.importLibrary(name as any);
+		}
+		
+		return moduleCache[name];
+	};
+
+	return Promise.all(libs.map((l) => ensureLib(l)));
 };

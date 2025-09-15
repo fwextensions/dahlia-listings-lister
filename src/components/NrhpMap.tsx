@@ -29,6 +29,9 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 	const hasFittedPolygonRef = useRef<boolean>(false);
 	const [mapsError, setMapsError] = useState<string | null>(null);
 	const [mapsReady, setMapsReady] = useState(false);
+	const [coreLib, setCoreLib] = useState<any | null>(null);
+	const [mapsLib, setMapsLib] = useState<any | null>(null);
+	const [markerLib, setMarkerLib] = useState<any | null>(null);
 
 	const { data: geojson, isLoading, error } = useNrhpGeometry(projectId);
 
@@ -45,11 +48,15 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 
 		let cancelled = false;
 
-		loadGoogleMapsApi(apiKey)
-			.then((google) => {
+		loadGoogleMapsApi(apiKey, ["core", "maps", "marker"])
+			.then(([coreModule, mapsModule, markerModule]) => {
 				if (cancelled) return;
+				setCoreLib(coreModule);
+				setMapsLib(mapsModule);
+				setMarkerLib(markerModule);
+				const { Map } = mapsModule as any;
 				if (!mapRef.current && containerRef.current) {
-					mapRef.current = new (google as any).maps.Map(containerRef.current, {
+					mapRef.current = new Map(containerRef.current, {
 						center: { lat: 37.7749, lng: -122.4194 },
 						zoom: 12,
 						streetViewControl: false,
@@ -70,9 +77,11 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 
 	// render/refresh layers and marker; avoid zooming on mere address input edits
 	useEffect(() => {
-		const google = (window as any).google as any;
 		const map = mapRef.current;
-		if (!google || !map || !mapsReady) return;
+		const core = coreLib as any;
+		const maps = mapsLib as any;
+		const marker = markerLib as any;
+		if (!core || !maps || !marker || !map || !mapsReady) return;
 
 		// reset polygon-fit guard when project changes, and suppress building marker for this tick to avoid flicker
 		let suppressBuildingThisRun = false;
@@ -92,7 +101,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			map.data.forEach((f: any) => map.data.remove(f));
 		} catch {}
 
-		const bounds = new google.maps.LatLngBounds();
+		const { LatLngBounds, LatLng, event } = core as any;
+		const bounds = new LatLngBounds();
 
 		// add geojson if available
 		if (geojson && geojson.type === "FeatureCollection") {
@@ -123,7 +133,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				try {
 					if (!bounds.isEmpty()) {
 						map.fitBounds(bounds);
-						google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+						event.addListenerOnce(map, "bounds_changed", () => {
 							if (map.getZoom() > 18) map.setZoom(18);
 						});
 						hasFittedPolygonRef.current = true;
@@ -135,8 +145,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 		// if viewport from server is available, include it in bounds to guide initial zoom
 		if (viewport) {
 			try {
-				bounds.extend(new google.maps.LatLng(viewport.north, viewport.east));
-				bounds.extend(new google.maps.LatLng(viewport.south, viewport.west));
+				bounds.extend(new LatLng(viewport.north, viewport.east));
+				bounds.extend(new LatLng(viewport.south, viewport.west));
 			} catch {}
 		}
 
@@ -164,16 +174,16 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				}
 				return Promise.resolve<void>(undefined);
 			}
-			const loc = new google.maps.LatLng(lat, lng);
+			const loc = new LatLng(lat, lng);
 			if (!markerRef.current) {
 				// use AdvancedMarkerElement per Google deprecation notice, with colored Pin for address
 				const addressPinColor = isMatch === true ? "#16a34a" : isMatch === false ? "#d97706" : "#2563eb";
-				const addressPin = new google.maps.marker.PinElement({
+				const addressPin = new marker.PinElement({
 					background: addressPinColor,
 					borderColor: "#111827",
 					glyphColor: "#ffffff",
 				});
-				markerRef.current = new google.maps.marker.AdvancedMarkerElement({
+				markerRef.current = new marker.AdvancedMarkerElement({
 					map,
 					position: loc,
 					content: addressPin.element,
@@ -193,7 +203,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			if (suppressBuildingThisRun) return;
 			let loc: any = null;
 			if (typeof buildingLat === "number" && typeof buildingLng === "number") {
-				loc = new google.maps.LatLng(buildingLat, buildingLng);
+				loc = new LatLng(buildingLat, buildingLng);
 			}
 			if (!loc) {
 				if (buildingMarkerRef.current) {
@@ -205,12 +215,12 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				return;
 			}
 			if (!buildingMarkerRef.current) {
-				const buildingPin = new google.maps.marker.PinElement({
+				const buildingPin = new marker.PinElement({
 					background: "#7c3aed", // purple for building
 					borderColor: "#111827",
 					glyphColor: "#ffffff",
 				});
-				buildingMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({
+				buildingMarkerRef.current = new marker.AdvancedMarkerElement({
 					map,
 					position: loc,
 					title: "Building location",
@@ -228,7 +238,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			// place building marker after address marker; do not auto-fit on address results
 			placeBuildingMarker();
 		});
-	}, [mapsReady, geojson, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng, projectId]);
+	}, [mapsReady, coreLib, mapsLib, markerLib, geojson, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng, projectId]);
 
 	// keep marker title in sync with address without retriggering heavy map effect
 	useEffect(() => {

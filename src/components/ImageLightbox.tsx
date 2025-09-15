@@ -11,6 +11,7 @@ interface ImageLightboxProps {
 export default function ImageLightbox({ images, initialIndex = 0, onClose }: ImageLightboxProps) {
 	const overlayRef = useRef<HTMLDivElement | null>(null);
 	const initialImageRef = useRef<HTMLDivElement | null>(null);
+	const galleryRef = useRef<HTMLDivElement | null>(null);
 
 	useEffect(() => {
 		const onKeyDown = (e: KeyboardEvent) => {
@@ -23,11 +24,6 @@ export default function ImageLightbox({ images, initialIndex = 0, onClose }: Ima
 		// lock body scroll while lightbox is open
 		const prevOverflow = document.body.style.overflow;
 		document.body.style.overflow = "hidden";
-
-		// scroll the initially clicked image into view
-		if (initialImageRef.current) {
-			initialImageRef.current.scrollIntoView({ block: "start" });
-		}
 
 		return () => {
 			window.removeEventListener("keydown", onKeyDown);
@@ -60,21 +56,21 @@ export default function ImageLightbox({ images, initialIndex = 0, onClose }: Ima
 					<line x1="6" y1="6" x2="18" y2="18"></line>
 				</svg>
 			</button>
-			<div className="relative w-full max-w-4xl">
+			<div ref={galleryRef} className="@container relative w-full max-w-3xl lightbox-gallery">
 				{images.map((img: ListingImage, idx) => (
 					<div
 						key={img.Id}
 						ref={idx === initialIndex ? initialImageRef : null}
-						className="mb-6"
+						className="mb-6 flex flex-col items-center"
 					>
 						{/* eslint-disable-next-line @next/next/no-img-element */}
 						<img
 							src={img.displayImageURL || img.Image_URL}
 							alt={img.Image_Description || img.Name}
-							className="w-full h-auto rounded-md shadow-lg"
+							className="w-full h-auto max-h-[100cqw] object-contain"
 						/>
 						{((img.Image_Description || img.Name)) && (
-							<p className="mt-2 text-gray-200 text-sm">{img.Image_Description || img.Name}</p>
+							<p className="mt-2 text-gray-200 text-sm text-center">{img.Image_Description || img.Name}</p>
 						)}
 					</div>
 				))}

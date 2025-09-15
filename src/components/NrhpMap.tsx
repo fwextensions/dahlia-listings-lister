@@ -7,9 +7,9 @@ import { useNrhpGeometry } from "@/hooks/useNrhpGeometry";
 import { loadGoogleMapsApi } from "@/utils/googleMaps";
 
 interface NrhpMapProps {
-	projectId: string;
-	address: string;
-	isMatch: boolean | null;
+	projectId: string | null;
+	address?: string;
+	isMatch?: boolean | null;
 	lat?: number;
 	lng?: number;
 	viewport?: { north: number; south: number; east: number; west: number };
@@ -19,14 +19,31 @@ interface NrhpMapProps {
 }
 
 const MAP_HEIGHT_PX = 420;
+// default city view for non-NRHP maps (center and zoom), based on
+// https://www.google.com/maps/@37.755019,-122.4488599,13z
+const SF_DEFAULT_CENTER = { lat: 37.760019, lng: -122.4488599 };
+const SF_NON_NRHP_ZOOM = 12;
 
-const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnabled = true, buildingLat, buildingLng }: NrhpMapProps) => {
+export default function NrhpMap({
+	projectId,
+	address,
+	isMatch,
+	lat,
+	lng,
+	viewport,
+	markerEnabled = true,
+	buildingLat,
+	buildingLng
+}: NrhpMapProps)
+{
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const mapRef = useRef<any>(null);
 	const markerRef = useRef<any>(null);
 	const buildingMarkerRef = useRef<any>(null);
 	const lastProjectIdRef = useRef<string | null>(null);
 	const hasFittedPolygonRef = useRef<boolean>(false);
+	const hasFittedOnceRef = useRef<boolean>(false);
+	const lastNoPolyKeyRef = useRef<string | null>(null);
 	const [mapsError, setMapsError] = useState<string | null>(null);
 	const [mapsReady, setMapsReady] = useState(false);
 	const [coreLib, setCoreLib] = useState<any | null>(null);
@@ -57,11 +74,16 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				const { Map } = mapsModule as any;
 				if (!mapRef.current && containerRef.current) {
 					const baseOptions = {
-						center: { lat: 37.7749, lng: -122.4194 },
-						zoom: 12,
-						streetViewControl: false,
-						mapTypeControl: false,
+						center: SF_DEFAULT_CENTER,
+						zoom: SF_NON_NRHP_ZOOM,
 						fullscreenControl: true,
+						mapTypeControl: true,
+						mapTypeControlOptions: {
+							style: mapsModule.MapTypeControlStyle.DROPDOWN_MENU,
+						},
+						streetViewControl: false,
+						zoomControl: false,
+						cameraControl: false,
 					};
 					const options = mapId ? { ...baseOptions, mapId } : baseOptions;
 					mapRef.current = new Map(containerRef.current, options);
@@ -89,6 +111,7 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 		if (lastProjectIdRef.current !== projectId) {
 			lastProjectIdRef.current = projectId;
 			hasFittedPolygonRef.current = false;
+			hasFittedOnceRef.current = false;
 			suppressBuildingThisRun = true;
 			// proactively clear previous building marker so old coords don't flash
 			if (buildingMarkerRef.current) {
@@ -97,49 +120,83 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			}
 		}
 
+		// in non-polygon mode (projectId null), compute a key for viewport/markers and refit once per unique key
+		const noPolyKey = projectId
+			? null
+			: JSON.stringify({
+				v: viewport ?? null,
+				a: (typeof lat === "number" && typeof lng === "number") ? { lat, lng } :
+					null,
+				b: (typeof buildingLat === "number" && typeof buildingLng ===
+					"number") ? { lat: buildingLat, lng: buildingLng } : null,
+			});
+		if (!projectId) {
+			if (lastNoPolyKeyRef.current !== noPolyKey) {
+				lastNoPolyKeyRef.current = noPolyKey;
+				hasFittedOnceRef.current = false;
+			}
+		} else {
+			// reset the no-polygon key when entering polygon mode
+			lastNoPolyKeyRef.current = null;
+		}
+
 		// clear existing data layer features before re-adding
 		try {
 			map.data.forEach((f: any) => map.data.remove(f));
-		} catch {}
+		} catch {
+		}
 
 		const { LatLngBounds, LatLng, event } = core as any;
 		const bounds = new LatLngBounds();
+		let extendedByPolygon = false;
 
 		// add geojson if available
 		if (geojson && geojson.type === "FeatureCollection") {
-			let extendedByPolygon = false;
 			try {
 				map.data.addGeoJson(geojson as any);
 				map.data.setStyle({
-					fillColor: isMatch === true ? "#22c55e" : isMatch === false ? "#f59e0b" : "#3b82f6",
+					fillColor: isMatch === true ? "#22c55e" :
+						isMatch === false ? "#f59e0b" : "#3b82f6",
 					fillOpacity: 0.25,
-					strokeColor: isMatch === true ? "#16a34a" : isMatch === false ? "#d97706" : "#2563eb",
+					strokeColor: isMatch === true ? "#16a34a" :
+						isMatch === false ? "#d97706" : "#2563eb",
 					strokeOpacity: 0.9,
 					strokeWeight: 2,
 				});
 				// expand bounds to polygon geometry
 				map.data.forEach((feature: any) => {
 					const geom = feature.getGeometry();
-					if (!geom) return;
+					if (!geom) {
+						return;
+					}
 					try {
-						geom.forEachLatLng((latLng: any) => { bounds.extend(latLng); extendedByPolygon = true; });
-					} catch {}
+						geom.forEachLatLng((latLng: any) => {
+							bounds.extend(latLng);
+							extendedByPolygon = true;
+						});
+					} catch {
+					}
 				});
 				// removed debug featuresCount
 			} catch {
 				// swallow malformed geojson errors but keep map usable
 			}
 			// fit to polygon only once per project (prevents zoom on address edits)
-			if (extendedByPolygon && !hasFittedPolygonRef.current && !viewport && (typeof lat !== "number" || typeof lng !== "number")) {
+			if (extendedByPolygon && !hasFittedPolygonRef.current && !viewport &&
+				(typeof lat !== "number" || typeof lng !== "number")) {
 				try {
 					if (!bounds.isEmpty()) {
 						map.fitBounds(bounds);
 						event.addListenerOnce(map, "bounds_changed", () => {
-							if (map.getZoom() > 18) map.setZoom(18);
+							if (map.getZoom() > 18) {
+								map.setZoom(18);
+							}
 						});
 						hasFittedPolygonRef.current = true;
+						hasFittedOnceRef.current = true;
 					}
-				} catch {}
+				} catch {
+				}
 			}
 		}
 
@@ -148,7 +205,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			try {
 				bounds.extend(new LatLng(viewport.north, viewport.east));
 				bounds.extend(new LatLng(viewport.south, viewport.west));
-			} catch {}
+			} catch {
+			}
 		}
 
 		// place marker only when server-provided lat/lng are available
@@ -159,7 +217,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 					try {
 						// AdvancedMarkerElement: remove by detaching from map
 						markerRef.current.map = null;
-					} catch {}
+					} catch {
+					}
 					markerRef.current = null;
 				}
 				return Promise.resolve<void>(undefined);
@@ -170,7 +229,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 					try {
 						// AdvancedMarkerElement: remove by detaching from map
 						markerRef.current.map = null;
-					} catch {}
+					} catch {
+					}
 					markerRef.current = null;
 				}
 				return Promise.resolve<void>(undefined);
@@ -178,7 +238,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			const loc = new LatLng(lat, lng);
 			if (!markerRef.current) {
 				// use AdvancedMarkerElement per Google deprecation notice, with colored Pin for address
-				const addressPinColor = isMatch === true ? "#16a34a" : isMatch === false ? "#d97706" : "#2563eb";
+				const addressPinColor = isMatch === true ? "#16a34a" :
+					isMatch === false ? "#d97706" : "#2563eb";
 				const addressPin = new marker.PinElement({
 					background: addressPinColor,
 					borderColor: "#111827",
@@ -193,7 +254,9 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 			} else {
 				// update position and ensure it's attached to the current map
 				markerRef.current.position = loc;
-				if (markerRef.current.map !== map) markerRef.current.map = map;
+				if (markerRef.current.map !== map) {
+					markerRef.current.map = map;
+				}
 			}
 			bounds.extend(loc);
 			return Promise.resolve<void>(undefined);
@@ -201,7 +264,9 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 
 		// place building marker only when buildingLat/buildingLng are available; no polygon-center fallback
 		const placeBuildingMarker = () => {
-			if (suppressBuildingThisRun) return;
+			if (suppressBuildingThisRun) {
+				return;
+			}
 			let loc: any = null;
 			if (typeof buildingLat === "number" && typeof buildingLng === "number") {
 				loc = new LatLng(buildingLat, buildingLng);
@@ -210,7 +275,8 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				if (buildingMarkerRef.current) {
 					try {
 						buildingMarkerRef.current.map = null;
-					} catch {}
+					} catch {
+					}
 					buildingMarkerRef.current = null;
 				}
 				return;
@@ -230,7 +296,9 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 				});
 			} else {
 				buildingMarkerRef.current.position = loc;
-				if (buildingMarkerRef.current.map !== map) buildingMarkerRef.current.map = map;
+				if (buildingMarkerRef.current.map !== map) {
+					buildingMarkerRef.current.map = map;
+				}
 			}
 			bounds.extend(loc);
 		};
@@ -238,12 +306,38 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 		placeMarker().then(() => {
 			// place building marker after address marker; do not auto-fit on address results
 			placeBuildingMarker();
+			// polygon mode: fit once to polygon/viewport/markers when appropriate
+			if (!extendedByPolygon && projectId && !hasFittedOnceRef.current) {
+				try {
+					if (!bounds.isEmpty()) {
+						map.fitBounds(bounds);
+						event.addListenerOnce(map, "bounds_changed", () => {
+							if (map.getZoom() > 18) {
+								map.setZoom(18);
+							}
+						});
+						hasFittedOnceRef.current = true;
+					}
+				} catch {
+				}
+			} else if (!projectId && !hasFittedOnceRef.current) {
+				// non-NRHP mode: default to SF city center/zoom once
+				try {
+					map.setCenter(SF_DEFAULT_CENTER);
+					map.setZoom(SF_NON_NRHP_ZOOM);
+					hasFittedOnceRef.current = true;
+				} catch {
+				}
+			}
 		});
 	}, [mapsReady, coreLib, mapsLib, markerLib, geojson, isMatch, lat, lng, viewport, markerEnabled, buildingLat, buildingLng, projectId]);
 
 	// keep marker title in sync with address without retriggering heavy map effect
 	useEffect(() => {
-		try { markerRef.current.title = address; } catch {}
+		try {
+			markerRef.current.title = address || "";
+		} catch {
+		}
 	}, [address]);
 
 	return (
@@ -253,16 +347,16 @@ const NrhpMap = ({ projectId, address, isMatch, lat, lng, viewport, markerEnable
 					{mapsError || (error as any)?.message || "Failed to load map"}
 				</div>
 			)}
-
-			{!isLoading && geojson && Array.isArray(geojson.features) && geojson.features.length === 0 && (
-				<div className="mt-2 p-2 text-xs rounded border border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-700">
-					No NRHP boundary geometry found for this Project_ID.
-				</div>
-			)}
-
-			<div ref={containerRef} style={{ width: "100%", height: MAP_HEIGHT_PX }} className="mt-2 rounded-md overflow-hidden border border-gray-300 dark:border-gray-700" />
+			{!isLoading && geojson && Array.isArray(geojson.features) &&
+				geojson.features.length === 0 && (
+					<div className="mt-2 p-2 text-xs rounded border border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-700">
+						No NRHP boundary geometry found for this Project_ID.
+					</div>
+				)}
+			<div ref={containerRef} style={{
+				width: "100%",
+				height: MAP_HEIGHT_PX
+			}} className="mt-2 rounded-md overflow-hidden border border-gray-300 dark:border-gray-700" />
 		</div>
 	);
-};
-
-export default NrhpMap;
+}

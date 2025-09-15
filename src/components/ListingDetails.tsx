@@ -4,6 +4,7 @@ import ListingHeader from "./ListingHeader";
 import ListingDetailFields from "./ListingDetailFields";
 import UnitSummaryCard, { UnitSummary } from "./UnitSummaryCard";
 import NrhpAddressCheck from "./NrhpAddressCheck";
+import BuildingLocationMap from "./BuildingLocationMap";
 import { formatDate } from "@/utils/formatters";
 import type { ListingDetailsClient } from "@/hooks/useListingDetailsQuery";
 
@@ -70,13 +71,18 @@ export default function ListingDetails({
                 </div>
             )}
 
-            {hasNrhpPreference && (
+            {hasNrhpPreference ? (
                 <NrhpAddressCheck
                     listingId={listing.Id}
                     listingName={listing.Name}
                     listingDetails={listingDetails}
                     isDetailsLoading={isDetailsLoading}
                     detailsError={detailsError}
+                />
+            ) : (
+                <BuildingLocationMap
+                    listing={listing}
+                    isDetailsLoading={isDetailsLoading}
                 />
             )}
         </div>

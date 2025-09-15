@@ -23,7 +23,7 @@ export const loadGoogleMapsApi = (apiKey: string, libs: GoogleMapsLibrary[]): Pr
 		if (!moduleCache[name]) {
 			moduleCache[name] = loader!.importLibrary(name as any);
 		}
-		
+
 		return moduleCache[name];
 	};
 

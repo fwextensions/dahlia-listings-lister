@@ -1,23 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ListingFilter } from "@/components/FilterBar";
 
 const STORAGE_KEY = "listingFilter";
 
 export const useListingFilter = () => {
-	const [currentFilter, setCurrentFilter] = useState<ListingFilter>(() => {
-		if (typeof window === "undefined") return "All";
+	const [currentFilter, setCurrentFilter] = useState<ListingFilter>("All");
+	const hasHydratedRef = useRef(false);
+
+	useEffect(() => {
 		try {
 			const saved = localStorage.getItem(STORAGE_KEY);
 			if (saved === "All" || saved === "Rental" || saved === "Sales") {
-				return saved as ListingFilter;
+				setCurrentFilter(saved as ListingFilter);
 			}
 		} catch {
 			// ignore storage errors
 		}
-		return "All";
-	});
+		hasHydratedRef.current = true;
+	}, []);
 
 	useEffect(() => {
+		if (!hasHydratedRef.current) {
+			return;
+		}
 		try {
 			localStorage.setItem(STORAGE_KEY, currentFilter);
 		} catch {

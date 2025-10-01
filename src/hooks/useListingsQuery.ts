@@ -6,6 +6,7 @@ export const useListingsQuery = () => {
 	return useQuery<ListingsResponse, Error>({
 		queryKey: ["listings"],
 		initialData: () => getCachedListings() ?? undefined,
+		initialDataUpdatedAt: 0,
 		queryFn: async ({ signal }) => {
 			const response = await fetch("/api/listings", { signal });
 			if (!response.ok) {
